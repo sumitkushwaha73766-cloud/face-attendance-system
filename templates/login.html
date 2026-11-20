@@ -2,38 +2,40 @@
 {% block title %}Login - Face Attendance{% endblock %}
 
 {% block content_full %}
-<div class="login-wrapper d-flex justify-content-center align-items-center vh-100 bg-light">
-    <div class="card shadow-lg border-0" style="width: 400px;">
+<div class="login-wrapper d-flex justify-content-center align-items-center vh-100">
+    <div class="card login-card shadow-lg border-0" style="width: 420px; z-index: 10;">
         <div class="card-body p-5">
             <div class="text-center mb-4">
-                <i class="bi bi-person-bounding-box display-3 text-primary"></i>
-                <h3 class="mt-2">FaceAttend</h3>
-                <p class="text-muted">Biometric Attendance System</p>
+                <div class="login-icon-ring mb-3">
+                    <i class="bi bi-person-bounding-box display-4 text-primary"></i>
+                </div>
+                <h3 class="fw-bold mb-1">FaceAttend</h3>
+                <p class="text-muted small">Biometric AI Attendance System</p>
             </div>
 
             <form method="POST" action="{{ url_for('login') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="mb-3">
-                    <label class="form-label">Username</label>
+                    <label class="form-label fw-semibold text-secondary small">Username</label>
                     <div class="input-group">
-                        <span class="input-group-text"><i class="bi bi-person"></i></span>
-                        <input type="text" name="username" class="form-control" placeholder="Enter username" required autofocus>
+                        <span class="input-group-text bg-white border-end-0"><i class="bi bi-person text-muted"></i></span>
+                        <input type="text" name="username" class="form-control border-start-0 ps-0" placeholder="Enter username" required autofocus>
                     </div>
                 </div>
                 <div class="mb-4">
-                    <label class="form-label">Password</label>
+                    <label class="form-label fw-semibold text-secondary small">Password</label>
                     <div class="input-group">
-                        <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                        <input type="password" name="password" class="form-control" placeholder="Enter password" required>
+                        <span class="input-group-text bg-white border-end-0"><i class="bi bi-lock text-muted"></i></span>
+                        <input type="password" name="password" class="form-control border-start-0 ps-0" placeholder="Enter password" required>
                     </div>
                 </div>
-                <button type="submit" class="btn btn-primary w-100 py-2">
-                    <i class="bi bi-box-arrow-in-right me-2"></i> Login
+                <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
+                    <i class="bi bi-box-arrow-in-right me-2"></i> Access Dashboard
                 </button>
             </form>
 
-            <div class="text-center mt-4">
-                <small class="text-muted">Default: admin / admin123</small>
+            <div class="text-center mt-4 pt-2 border-top">
+                <small class="text-muted">Default login: <span class="badge bg-light text-dark border">admin</span> / <span class="badge bg-light text-dark border">admin123</span></small>
             </div>
         </div>
     </div>
