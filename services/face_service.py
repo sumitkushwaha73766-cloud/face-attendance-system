@@ -1,9 +1,15 @@
 """Face detection, encoding, and recognition service."""
-import face_recognition
-import numpy as np
-import cv2
 import os
+import cv2
+import numpy as np
 from config import Config
+
+try:
+    import face_recognition
+    FACE_RECOGNITION_AVAILABLE = True
+except ImportError:
+    face_recognition = None
+    FACE_RECOGNITION_AVAILABLE = False
 
 
 def detect_and_encode_face(image_path):
@@ -11,6 +17,9 @@ def detect_and_encode_face(image_path):
     Detect a face in an image and return its 128-d encoding.
     Returns (encoding, error_message) tuple.
     """
+    if not FACE_RECOGNITION_AVAILABLE:
+        return None, "face_recognition is not installed. Please install dlib and face_recognition."
+
     image = face_recognition.load_image_file(image_path)
     face_locations = face_recognition.face_locations(image, model=Config.FACE_RECOGNITION_MODEL)
 
@@ -28,6 +37,9 @@ def encode_face_from_frame(frame):
     Detect and encode a face from an OpenCV frame (BGR).
     Returns (encoding, face_location, error_message).
     """
+    if not FACE_RECOGNITION_AVAILABLE:
+        return None, None, "face_recognition is not installed."
+
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     small_frame = cv2.resize(rgb_frame, (0, 0), fx=0.5, fy=0.5)
 
@@ -53,6 +65,9 @@ def recognize_face(unknown_encoding, known_faces):
     known_faces: list of dicts with 'id', 'name', 'roll_no', 'encoding'
     """
     if not known_faces:
+        return None
+
+    if not FACE_RECOGNITION_AVAILABLE:
         return None
 
     known_encodings = [f["encoding"] for f in known_faces]
