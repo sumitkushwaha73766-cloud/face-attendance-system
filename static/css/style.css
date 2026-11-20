@@ -1,0 +1,150 @@
+/* ─── Sidebar ────────────────────────────────── */
+.sidebar {
+    width: 250px;
+    min-height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 100;
+    transition: all 0.3s;
+}
+
+.sidebar .nav-link {
+    border-radius: 8px;
+    margin-bottom: 2px;
+    padding: 10px 15px;
+    transition: background 0.2s;
+}
+
+.sidebar .nav-link:hover,
+.sidebar .nav-link.active {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.sidebar .nav-link.active {
+    background: rgba(255, 255, 255, 0.2);
+    font-weight: 600;
+}
+
+/* ─── Main Content ───────────────────────────── */
+.main-content {
+    margin-left: 250px;
+    min-height: 100vh;
+    background: #f8f9fa;
+}
+
+/* ─── Cards ──────────────────────────────────── */
+.card {
+    border-radius: 12px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-1px);
+}
+
+.card-header {
+    border-bottom: 1px solid #eee;
+    border-radius: 12px 12px 0 0 !important;
+    padding: 15px 20px;
+}
+
+/* ─── Stats Cards ────────────────────────────── */
+.row > .col-md-3 .card {
+    border-radius: 12px;
+}
+
+.row > .col-md-3 .card .card-body {
+    padding: 20px;
+}
+
+/* ─── Tables ─────────────────────────────────── */
+.table th {
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #666;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+/* ─── Login Page ─────────────────────────────── */
+.login-wrapper {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.login-wrapper .card {
+    border-radius: 16px;
+}
+
+/* ─── Buttons ────────────────────────────────── */
+.btn {
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+.btn-primary {
+    background: #4472C4;
+    border-color: #4472C4;
+}
+
+.btn-primary:hover {
+    background: #3461b3;
+    border-color: #3461b3;
+}
+
+/* ─── Badges ─────────────────────────────────── */
+.badge {
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+/* ─── Camera Feed ────────────────────────────── */
+#cameraFeed {
+    border-radius: 12px;
+    max-height: 480px;
+}
+
+/* ─── Alerts ─────────────────────────────────── */
+.alert {
+    border-radius: 10px;
+    border: none;
+}
+
+/* ─── Responsive ─────────────────────────────── */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 100%;
+        min-height: auto;
+        position: relative;
+    }
+
+    .main-content {
+        margin-left: 0;
+    }
+
+    .d-flex {
+        flex-direction: column;
+    }
+}
+
+/* ─── Scrollbar ──────────────────────────────── */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #bbb;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #888;
+}

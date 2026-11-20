@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}Take Attendance{% endblock %}
+{% block page_title %}<i class="bi bi-camera-video me-2"></i> Take Attendance{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">Live Camera Feed</h6>
+                <div>
+                    <button class="btn btn-success btn-sm" id="startBtn" onclick="startAttendance()">
+                        <i class="bi bi-play-fill me-1"></i> Start
+                    </button>
+                    <button class="btn btn-danger btn-sm" id="stopBtn" onclick="stopAttendance()" style="display:none;">
+                        <i class="bi bi-stop-fill me-1"></i> Stop
+                    </button>
+                </div>
+            </div>
+            <div class="card-body text-center">
+                <div id="cameraPlaceholder" class="bg-light rounded d-flex align-items-center justify-content-center" style="height:400px;">
+                    <div class="text-muted">
+                        <i class="bi bi-camera-video display-1"></i>
+                        <p class="mt-2">Click "Start" to begin attendance</p>
+                    </div>
+                </div>
+                <img id="cameraFeed" src="" class="rounded" style="max-width:100%; display:none;">
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-person-check me-2"></i>Recognition Status</h6>
+            </div>
+            <div class="card-body text-center" id="recognitionStatus">
+                <p class="text-muted">Waiting to start...</p>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-list-check me-2"></i>Attendance Log</h6>
+                <span class="badge bg-primary" id="logCount">0</span>
+            </div>
+            <div class="card-body p-0" style="max-height:400px; overflow-y:auto;">
+                <ul class="list-group list-group-flush" id="attendanceLog">
+                    <li class="list-group-item text-center text-muted py-4">
+                        No entries yet
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let recognitionInterval = null;
+let logCount = 0;
+
+// [FIX C2] Get CSRF token for AJAX requests
+const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+function startAttendance() {
+    const feed = document.getElementById('cameraFeed');
+    const placeholder = document.getElementById('cameraPlaceholder');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+
+    feed.src = "{{ url_for('video_feed') }}";
+    feed.style.display = 'block';
+    placeholder.style.display = 'none';
+    startBtn.style.display = 'none';
+    stopBtn.style.display = 'inline-block';
+
+    document.getElementById('recognitionStatus').innerHTML =
+        '<div class="spinner-border text-primary" role="status"></div><p class="mt-2">Scanning faces...</p>';
+
+    recognitionInterval = setInterval(recognizeFace, 3000);
+}
+
+function stopAttendance() {
+    const feed = document.getElementById('cameraFeed');
+    const placeholder = document.getElementById('cameraPlaceholder');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+
+    clearInterval(recognitionInterval);
+
+    fetch("{{ url_for('api_stop_camera') }}", {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken }
+    });
+
+    feed.style.display = 'none';
+    feed.src = '';
+    placeholder.style.display = 'flex';
+    startBtn.style.display = 'inline-block';
+    stopBtn.style.display = 'none';
+
+    document.getElementById('recognitionStatus').innerHTML =
+        '<p class="text-muted">Camera stopped.</p>';
+}
+
+// [FIX H5] HTML escape function to prevent XSS
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function recognizeFace() {
+    fetch("{{ url_for('api_recognize') }}", {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken }
+    })
+        .then(res => res.json())
+        .then(data => {
+            const status = document.getElementById('recognitionStatus');
+
+            if (data.status === 'success') {
+                // [FIX H5] Use escapeHtml to prevent XSS from student names
+                status.innerHTML = `
+                    <div class="text-success">
+                        <i class="bi bi-check-circle display-4"></i>
+                        <h5 class="mt-2">${escapeHtml(data.name)}</h5>
+                        <p>Roll: ${escapeHtml(data.roll_no)}</p>
+                        <p>Confidence: ${escapeHtml(String(data.confidence))}%</p>
+                        <small class="${data.newly_marked ? 'text-success' : 'text-warning'}">${escapeHtml(data.message)}</small>
+                    </div>
+                `;
+                if (data.newly_marked) {
+                    addToLog(data.name, data.roll_no);
+                }
+            } else if (data.status === 'unknown') {
+                status.innerHTML = `
+                    <div class="text-warning">
+                        <i class="bi bi-question-circle display-4"></i>
+                        <p class="mt-2">Unknown Person</p>
+                    </div>
+                `;
+            } else {
+                status.innerHTML = `
+                    <div class="text-muted">
+                        <i class="bi bi-search display-4"></i>
+                        <p class="mt-2">${escapeHtml(data.message)}</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(err => console.error('Recognition error:', err));
+}
+
+function addToLog(name, rollNo) {
+    const log = document.getElementById('attendanceLog');
+    const time = new Date().toLocaleTimeString();
+
+    if (logCount === 0) { log.innerHTML = ''; }
+    logCount++;
+    document.getElementById('logCount').textContent = logCount;
+
+    const item = document.createElement('li');
+    item.className = 'list-group-item d-flex justify-content-between align-items-center';
+
+    // [FIX H5] Use textContent for user-supplied data
+    const infoDiv = document.createElement('div');
+    const nameEl = document.createElement('strong');
+    nameEl.textContent = name;
+    const rollEl = document.createElement('small');
+    rollEl.className = 'text-muted';
+    rollEl.textContent = rollNo;
+    infoDiv.appendChild(nameEl);
+    infoDiv.appendChild(document.createElement('br'));
+    infoDiv.appendChild(rollEl);
+
+    const badge = document.createElement('span');
+    badge.className = 'badge bg-success';
+    badge.textContent = time;
+
+    item.appendChild(infoDiv);
+    item.appendChild(badge);
+    log.prepend(item);
+}
+</script>
+{% endblock %}

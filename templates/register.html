@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Register Student{% endblock %}
+{% block page_title %}<i class="bi bi-person-plus me-2"></i> Register Student{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <form method="POST" enctype="multipart/form-data" id="registerForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Full Name *</label>
+                            <input type="text" name="name" class="form-control" placeholder="Enter student name"
+                                   pattern="[A-Za-z\s\-'.]{2,100}" title="Letters, spaces, hyphens only (2-100 chars)" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Roll Number *</label>
+                            <input type="text" name="roll_no" class="form-control" placeholder="e.g., CSE2024001"
+                                   pattern="[A-Za-z0-9_\-]{1,20}" title="Letters, digits, hyphens, underscores only" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Class *</label>
+                        <select name="class_id" class="form-select" required>
+                            <option value="">Select Class</option>
+                            {% for cls in classes %}
+                                <option value="{{ cls.id }}">{{ cls.class_name }} - {{ cls.section }}</option>
+                            {% endfor %}
+                        </select>
+                        {% if not classes %}
+                            <small class="text-danger">No classes found. <a href="{{ url_for('classes_page') }}">Add a class first</a>.</small>
+                        {% endif %}
+                    </div>
+
+                    <!-- Photo Capture Options -->
+                    <div class="mb-3">
+                        <label class="form-label">Student Photo *</label>
+                        <ul class="nav nav-tabs" id="photoTab">
+                            <li class="nav-item">
+                                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#webcamTab" type="button">
+                                    <i class="bi bi-camera me-1"></i> Webcam Capture
+                                </button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#uploadTab" type="button">
+                                    <i class="bi bi-upload me-1"></i> Upload Photo
+                                </button>
+                            </li>
+                        </ul>
+                        <div class="tab-content border border-top-0 p-3 rounded-bottom">
+                            <div class="tab-pane fade show active" id="webcamTab">
+                                <div class="text-center">
+                                    <video id="webcamVideo" width="400" height="300" autoplay class="rounded border mb-2" style="display:none;"></video>
+                                    <canvas id="webcamCanvas" width="400" height="300" class="rounded border mb-2" style="display:none;"></canvas>
+                                    <br>
+                                    <button type="button" id="startCameraBtn" class="btn btn-outline-primary btn-sm" onclick="startCamera()">
+                                        <i class="bi bi-camera me-1"></i> Open Camera
+                                    </button>
+                                    <button type="button" id="captureBtn" class="btn btn-success btn-sm" style="display:none;" onclick="capturePhoto()">
+                                        <i class="bi bi-camera-fill me-1"></i> Capture
+                                    </button>
+                                    <button type="button" id="retakeBtn" class="btn btn-warning btn-sm" style="display:none;" onclick="retakePhoto()">
+                                        <i class="bi bi-arrow-repeat me-1"></i> Retake
+                                    </button>
+                                    <input type="hidden" name="captured_photo" id="capturedPhotoData">
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="uploadTab">
+                                <input type="file" name="photo" class="form-control" accept=".jpg,.jpeg,.png">
+                                <small class="text-muted">Upload a clear front-facing photo (JPG, PNG only)</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 py-2">
+                        <i class="bi bi-person-check me-2"></i> Register Student
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let stream = null;
+
+function startCamera() {
+    const video = document.getElementById('webcamVideo');
+    const startBtn = document.getElementById('startCameraBtn');
+    const captureBtn = document.getElementById('captureBtn');
+
+    navigator.mediaDevices.getUserMedia({ video: { width: 400, height: 300 } })
+        .then(s => {
+            stream = s;
+            video.srcObject = s;
+            video.style.display = 'block';
+            startBtn.style.display = 'none';
+            captureBtn.style.display = 'inline-block';
+        })
+        .catch(err => {
+            alert('Could not access camera: ' + err.message);
+        });
+}
+
+function capturePhoto() {
+    const video = document.getElementById('webcamVideo');
+    const canvas = document.getElementById('webcamCanvas');
+    const ctx = canvas.getContext('2d');
+    const captureBtn = document.getElementById('captureBtn');
+    const retakeBtn = document.getElementById('retakeBtn');
+
+    ctx.drawImage(video, 0, 0, 400, 300);
+    document.getElementById('capturedPhotoData').value = canvas.toDataURL('image/jpeg');
+
+    video.style.display = 'none';
+    canvas.style.display = 'block';
+    captureBtn.style.display = 'none';
+    retakeBtn.style.display = 'inline-block';
+
+    if (stream) { stream.getTracks().forEach(t => t.stop()); }
+}
+
+function retakePhoto() {
+    document.getElementById('capturedPhotoData').value = '';
+    document.getElementById('webcamCanvas').style.display = 'none';
+    document.getElementById('retakeBtn').style.display = 'none';
+    startCamera();
+}
+</script>
+{% endblock %}
