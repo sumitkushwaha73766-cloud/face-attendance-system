@@ -231,6 +231,12 @@ def dashboard():
 @app.route("/register", methods=["GET", "POST"])
 @login_required
 def register():
+    # Release backend camera lock so the browser can access the webcam
+    try:
+        camera.stop()
+    except Exception:
+        pass
+
     classes = get_all_classes()
 
     if request.method == "POST":
