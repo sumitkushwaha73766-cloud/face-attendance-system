@@ -414,22 +414,29 @@ def api_stop_camera():
 @app.route("/api/capture_frame", methods=["POST"])
 @login_required
 def api_capture_frame():
-    """Captures a single frame directly from hardware camera via OpenCV."""
+    """Captures a single frame directly from camera service or hardware."""
     try:
-        cap = cv2.VideoCapture(Config.CAMERA_INDEX, cv2.CAP_DSHOW)
-        if not cap.isOpened():
-            cap = cv2.VideoCapture(Config.CAMERA_INDEX, cv2.CAP_ANY)
-        if not cap.isOpened():
-            return jsonify({"status": "error", "message": "Hardware camera unavailable. Please slide open the physical camera shutter or upload a photo."})
-
-        # Allow auto-exposure to stabilize
         frame = None
-        for _ in range(3):
-            ret, frame = cap.read()
-        cap.release()
+        # If camera service is active and streaming
+        if camera.is_running():
+            success, f = camera.get_frame()
+            if success and f is not None:
+                frame = f
 
-        if not ret or frame is None:
-            return jsonify({"status": "error", "message": "Failed to read frame from camera."})
+        # If not active or failed, open hardware directly
+        if frame is None:
+            cap = cv2.VideoCapture(Config.CAMERA_INDEX, cv2.CAP_DSHOW)
+            if not cap.isOpened():
+                cap = cv2.VideoCapture(Config.CAMERA_INDEX, cv2.CAP_ANY)
+            if cap.isOpened():
+                for _ in range(3):
+                    ret, f = cap.read()
+                cap.release()
+                if ret and f is not None:
+                    frame = f
+
+        if frame is None:
+            return jsonify({"status": "error", "message": "Camera unavailable. Please use Option B (Upload Photo)."})
 
         ret, buffer = cv2.imencode(".jpg", frame)
         if not ret:
