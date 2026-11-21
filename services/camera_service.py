@@ -22,17 +22,11 @@ class Camera:
 
     def _open_working_capture(self):
         """Attempts to open any working camera index and backend."""
-        # Try configured index first
+        # DirectShow is fastest and non-blocking on Windows
         candidates = [
             (Config.CAMERA_INDEX, cv2.CAP_DSHOW),
-            (Config.CAMERA_INDEX, cv2.CAP_MSMF),
             (Config.CAMERA_INDEX, cv2.CAP_ANY),
-            (1, cv2.CAP_DSHOW),
-            (1, cv2.CAP_MSMF),
-            (1, cv2.CAP_ANY),
-            (0, cv2.CAP_DSHOW),
-            (0, cv2.CAP_MSMF),
-            (0, cv2.CAP_ANY),
+            (Config.CAMERA_INDEX, cv2.CAP_MSMF),
         ]
 
         for idx, backend in candidates:
