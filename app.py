@@ -411,6 +411,36 @@ def api_stop_camera():
     return jsonify({"status": "ok"})
 
 
+@app.route("/api/capture_frame", methods=["POST"])
+@login_required
+def api_capture_frame():
+    """Captures a single frame directly from hardware camera via OpenCV."""
+    try:
+        cap = cv2.VideoCapture(Config.CAMERA_INDEX, cv2.CAP_DSHOW)
+        if not cap.isOpened():
+            cap = cv2.VideoCapture(Config.CAMERA_INDEX, cv2.CAP_ANY)
+        if not cap.isOpened():
+            return jsonify({"status": "error", "message": "Hardware camera unavailable. Please slide open the physical camera shutter or upload a photo."})
+
+        # Allow auto-exposure to stabilize
+        frame = None
+        for _ in range(3):
+            ret, frame = cap.read()
+        cap.release()
+
+        if not ret or frame is None:
+            return jsonify({"status": "error", "message": "Failed to read frame from camera."})
+
+        ret, buffer = cv2.imencode(".jpg", frame)
+        if not ret:
+            return jsonify({"status": "error", "message": "Failed to encode photo."})
+
+        b64_str = base64.b64encode(buffer).decode("utf-8")
+        return jsonify({"status": "success", "image": f"data:image/jpeg;base64,{b64_str}"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+
 # --- View Attendance ---
 @app.route("/attendance/view")
 @login_required
