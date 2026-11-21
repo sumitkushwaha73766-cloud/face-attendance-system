@@ -62,16 +62,16 @@
                                     </div>
 
                                     <!-- Video / Preview Area -->
-                                    <div class="video-container position-relative d-inline-block text-center mb-3" style="min-height: 220px;">
-                                        <!-- Standby Box -->
+                                    <div class="video-container position-relative d-inline-block text-center mb-3" style="min-height: 260px;">
+                                        <!-- Standby / Loading Box -->
                                         <div id="cameraStandbyBox" class="p-4 bg-white rounded border d-flex flex-column align-items-center justify-content-center shadow-sm" style="width: 380px; height: 260px; max-width: 100%;">
-                                            <i class="bi bi-person-bounding-box display-3 text-secondary opacity-50 mb-2"></i>
-                                            <span class="text-dark fw-semibold">Camera Standby</span>
-                                            <span class="text-muted small mt-1">Click "Start Live Preview" or "Quick Snapshot" below</span>
+                                            <div class="spinner-border text-primary mb-2" role="status"></div>
+                                            <span class="text-dark fw-semibold small">Connecting to Camera...</span>
+                                            <span class="text-muted small mt-1">Please look at the camera lens</span>
                                         </div>
 
                                         <!-- Live Stream Feed (Direct from backend - Works 100% on all browsers!) -->
-                                        <img id="serverCameraFeed" src="" class="rounded border shadow-sm" style="width: 380px; height: 260px; object-fit: cover; display: none;">
+                                        <img id="serverCameraFeed" src="{{ url_for('video_feed') }}" onload="onFeedLoaded()" onerror="onFeedError()" class="rounded border shadow-sm" style="width: 380px; height: 260px; object-fit: cover; display: none;">
 
                                         <!-- Snapshot Result Preview Canvas -->
                                         <canvas id="webcamCanvas" width="380" height="260" class="rounded border shadow-sm" style="display:none;"></canvas>
@@ -79,14 +79,8 @@
 
                                     <!-- Controls -->
                                     <div class="d-flex justify-content-center gap-2 flex-wrap mb-2" id="cameraControls">
-                                        <button type="button" id="startPreviewBtn" class="btn btn-primary px-3 py-2 fw-semibold" onclick="startCameraPreview()">
-                                            <i class="bi bi-camera-video me-1"></i> Start Live Preview
-                                        </button>
-                                        <button type="button" id="quickSnapBtn" class="btn btn-success px-3 py-2 fw-semibold" onclick="quickSnapPhoto()">
-                                            <i class="bi bi-camera-fill me-1"></i> Quick Snapshot
-                                        </button>
-                                        <button type="button" id="captureStreamBtn" class="btn btn-success px-4 py-2 fw-semibold" style="display:none;" onclick="captureLiveStream()">
-                                            <i class="bi bi-check2-circle me-1"></i> Snap Current Frame
+                                        <button type="button" id="captureStreamBtn" class="btn btn-success px-4 py-2 fw-semibold" onclick="captureLiveStream()">
+                                            <i class="bi bi-camera-fill me-1"></i> 📸 Click Photo to Capture
                                         </button>
                                         <button type="button" id="retakeBtn" class="btn btn-warning px-3 py-2 fw-semibold" style="display:none;" onclick="retakePhoto()">
                                             <i class="bi bi-arrow-repeat me-1"></i> Retake Photo
@@ -94,7 +88,7 @@
                                     </div>
 
                                     <div id="captureSuccessBadge" class="alert alert-success py-2 px-3 small d-inline-block mb-0 mt-2" style="display:none;">
-                                        <i class="bi bi-check-circle-fill me-1"></i> <strong>Photo Captured Successfully!</strong> Click "Register Student" below.
+                                        <i class="bi bi-check-circle-fill me-1"></i> <strong>Photo Captured Successfully!</strong> Now click "Register Student" below.
                                     </div>
 
                                     <input type="hidden" name="captured_photo" id="capturedPhotoData">
@@ -131,6 +125,32 @@
 <script>
 const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
+function onFeedLoaded() {
+    const feed = document.getElementById('serverCameraFeed');
+    const standby = document.getElementById('cameraStandbyBox');
+    if (feed && standby) {
+        standby.style.display = 'none';
+        feed.style.display = 'inline-block';
+    }
+}
+
+function onFeedError() {
+    const standby = document.getElementById('cameraStandbyBox');
+    const errorBox = document.getElementById('cameraErrorBox');
+    const errorMsg = document.getElementById('cameraErrorMsg');
+    if (standby) {
+        standby.innerHTML = `
+            <i class="bi bi-camera-video-off display-3 text-warning opacity-75 mb-2"></i>
+            <span class="text-dark fw-semibold small">Camera Not Available</span>
+            <span class="text-muted small mt-1">Please use "Option B: Upload Photo" above</span>
+        `;
+    }
+    if (errorBox && errorMsg) {
+        errorMsg.textContent = "Camera feed could not start. Please use Option B (Upload Photo) to register.";
+        errorBox.style.display = 'block';
+    }
+}
+
 function switchToUploadTab() {
     const uploadTabBtn = document.getElementById('upload-tab-btn');
     const tab = new bootstrap.Tab(uploadTabBtn);
@@ -149,29 +169,6 @@ function previewUploadPhoto(e) {
     }
 }
 
-// ─── Start Live Preview (MJPEG stream directly from OpenCV) ────
-function startCameraPreview() {
-    const feed = document.getElementById('serverCameraFeed');
-    const standby = document.getElementById('cameraStandbyBox');
-    const startBtn = document.getElementById('startPreviewBtn');
-    const quickBtn = document.getElementById('quickSnapBtn');
-    const captureStreamBtn = document.getElementById('captureStreamBtn');
-    const canvas = document.getElementById('webcamCanvas');
-    const errorBox = document.getElementById('cameraErrorBox');
-
-    errorBox.style.display = 'none';
-    canvas.style.display = 'none';
-    standby.style.display = 'none';
-
-    // Start MJPEG stream with timestamp to avoid cache
-    feed.src = "{{ url_for('video_feed') }}?t=" + new Date().getTime();
-    feed.style.display = 'inline-block';
-
-    startBtn.style.display = 'none';
-    quickBtn.style.display = 'none';
-    captureStreamBtn.style.display = 'inline-block';
-}
-
 // ─── Snap Current Frame from Stream ──────────────────────────
 function captureLiveStream() {
     const feed = document.getElementById('serverCameraFeed');
@@ -181,7 +178,7 @@ function captureLiveStream() {
     const badge = document.getElementById('captureSuccessBadge');
 
     captureStreamBtn.disabled = true;
-    captureStreamBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Snapping...';
+    captureStreamBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Capturing Photo...';
 
     fetch("{{ url_for('api_capture_frame') }}", {
         method: 'POST',
@@ -190,7 +187,7 @@ function captureLiveStream() {
     .then(res => res.json())
     .then(data => {
         captureStreamBtn.disabled = false;
-        captureStreamBtn.innerHTML = '<i class="bi bi-check2-circle me-1"></i> Snap Current Frame';
+        captureStreamBtn.innerHTML = '<i class="bi bi-camera-fill me-1"></i> 📸 Click Photo to Capture';
 
         if (data.status === 'success') {
             feed.style.display = 'none';
@@ -213,56 +210,8 @@ function captureLiveStream() {
     })
     .catch(err => {
         captureStreamBtn.disabled = false;
-        captureStreamBtn.innerHTML = '<i class="bi bi-check2-circle me-1"></i> Snap Current Frame';
+        captureStreamBtn.innerHTML = '<i class="bi bi-camera-fill me-1"></i> 📸 Click Photo to Capture';
         alert('Capture error: ' + err.message);
-    });
-}
-
-// ─── Quick Snapshot directly from Hardware ────────────────────
-function quickSnapPhoto() {
-    const quickBtn = document.getElementById('quickSnapBtn');
-    const startBtn = document.getElementById('startPreviewBtn');
-    const standby = document.getElementById('cameraStandbyBox');
-    const retakeBtn = document.getElementById('retakeBtn');
-    const canvas = document.getElementById('webcamCanvas');
-    const badge = document.getElementById('captureSuccessBadge');
-    const errorBox = document.getElementById('cameraErrorBox');
-
-    errorBox.style.display = 'none';
-    quickBtn.disabled = true;
-    quickBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Snapping Face...';
-
-    fetch("{{ url_for('api_capture_frame') }}", {
-        method: 'POST',
-        headers: { 'X-CSRFToken': csrfToken }
-    })
-    .then(res => res.json())
-    .then(data => {
-        quickBtn.disabled = false;
-        quickBtn.innerHTML = '<i class="bi bi-camera-fill me-1"></i> Quick Snapshot';
-
-        if (data.status === 'success') {
-            standby.style.display = 'none';
-            const img = new Image();
-            img.onload = function() {
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                canvas.style.display = 'inline-block';
-                startBtn.style.display = 'none';
-                quickBtn.style.display = 'none';
-                retakeBtn.style.display = 'inline-block';
-                badge.style.display = 'inline-block';
-                document.getElementById('capturedPhotoData').value = data.image;
-            };
-            img.src = data.image;
-        } else {
-            alert(data.message || 'Camera capture failed. Please use Option B (Upload Photo).');
-        }
-    })
-    .catch(err => {
-        quickBtn.disabled = false;
-        quickBtn.innerHTML = '<i class="bi bi-camera-fill me-1"></i> Quick Snapshot';
-        alert('Server request failed: ' + err.message);
     });
 }
 
@@ -270,14 +219,16 @@ function quickSnapPhoto() {
 function retakePhoto() {
     document.getElementById('capturedPhotoData').value = '';
     document.getElementById('webcamCanvas').style.display = 'none';
-    document.getElementById('serverCameraFeed').style.display = 'none';
-    document.getElementById('serverCameraFeed').src = '';
-    document.getElementById('cameraStandbyBox').style.display = 'flex';
+    const feed = document.getElementById('serverCameraFeed');
+    const standby = document.getElementById('cameraStandbyBox');
+
+    standby.style.display = 'flex';
+    feed.style.display = 'none';
+    feed.src = "{{ url_for('video_feed') }}?t=" + new Date().getTime();
+
     document.getElementById('retakeBtn').style.display = 'none';
-    document.getElementById('captureStreamBtn').style.display = 'none';
+    document.getElementById('captureStreamBtn').style.display = 'inline-block';
     document.getElementById('captureSuccessBadge').style.display = 'none';
-    document.getElementById('startPreviewBtn').style.display = 'inline-block';
-    document.getElementById('quickSnapBtn').style.display = 'inline-block';
 }
 
 window.addEventListener('beforeunload', () => {
