@@ -41,12 +41,12 @@
                         <ul class="nav nav-tabs" id="photoTab">
                             <li class="nav-item">
                                 <button class="nav-link active" id="webcam-tab-btn" data-bs-toggle="tab" data-bs-target="#webcamTab" type="button">
-                                    <i class="bi bi-camera me-1"></i> Webcam Capture
+                                    <i class="bi bi-camera me-1"></i> Option A: Webcam Capture
                                 </button>
                             </li>
                             <li class="nav-item">
                                 <button class="nav-link" id="upload-tab-btn" data-bs-toggle="tab" data-bs-target="#uploadTab" type="button">
-                                    <i class="bi bi-upload me-1"></i> Upload Photo
+                                    <i class="bi bi-upload me-1"></i> Option B: Upload Photo (Always Works)
                                 </button>
                             </li>
                         </ul>
@@ -54,17 +54,26 @@
                             <!-- Webcam Tab -->
                             <div class="tab-pane fade show active" id="webcamTab">
                                 <div class="text-center py-2">
+                                    <!-- Camera Selector -->
+                                    <div class="mb-3 text-start mx-auto" style="max-width: 380px;">
+                                        <label class="form-label small text-muted mb-1"><i class="bi bi-gear me-1"></i>Select Camera Source:</label>
+                                        <select id="cameraSourceSelect" class="form-select form-select-sm">
+                                            <option value="">Auto-detect working camera</option>
+                                        </select>
+                                    </div>
+
                                     <div id="cameraErrorBox" class="alert alert-warning text-start mb-3" style="display:none;">
-                                        <strong><i class="bi bi-exclamation-triangle-fill me-1"></i> Camera unavailable:</strong>
+                                        <strong><i class="bi bi-exclamation-triangle-fill me-1"></i> Camera Notice:</strong>
                                         <span id="cameraErrorMsg">Could not start video source.</span>
                                         <hr class="my-2">
-                                        <p class="small mb-1">Tips to resolve:</p>
-                                        <ul class="small mb-2 ps-3">
-                                            <li>Close any other app currently using your camera (Zoom, Teams, Discord, Skype).</li>
-                                            <li>Check Windows <strong>Settings &rarr; Privacy & security &rarr; Camera</strong> to allow browser access.</li>
+                                        <p class="small mb-1 fw-bold text-dark">Quick checks for Lenovo laptops:</p>
+                                        <ul class="small mb-2 ps-3 text-secondary">
+                                            <li>Check if the <strong>physical camera shutter switch</strong> above the screen is closed (slide it so the lens is open).</li>
+                                            <li>Press <strong>Fn + F8</strong> (or <strong>F8</strong>) on your keyboard to toggle camera on.</li>
+                                            <li>Or simply click <strong>"Option B: Upload Photo"</strong> to upload any photo directly!</li>
                                         </ul>
-                                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="switchToUploadTab()">
-                                            <i class="bi bi-upload me-1"></i> Or simply upload a photo instead
+                                        <button type="button" class="btn btn-primary btn-sm" onclick="switchToUploadTab()">
+                                            <i class="bi bi-upload me-1"></i> Switch to Upload Photo (Instant)
                                         </button>
                                     </div>
 
@@ -73,13 +82,13 @@
                                         <canvas id="webcamCanvas" width="380" height="285" class="rounded border shadow-sm mb-2" style="display:none;"></canvas>
                                     </div>
                                     <br>
-                                    <button type="button" id="startCameraBtn" class="btn btn-primary btn-sm px-3" onclick="startCamera()">
+                                    <button type="button" id="startCameraBtn" class="btn btn-primary btn-sm px-4 py-2" onclick="startCamera()">
                                         <i class="bi bi-camera me-1"></i> Open Camera
                                     </button>
-                                    <button type="button" id="captureBtn" class="btn btn-success btn-sm px-3" style="display:none;" onclick="capturePhoto()">
+                                    <button type="button" id="captureBtn" class="btn btn-success btn-sm px-4 py-2" style="display:none;" onclick="capturePhoto()">
                                         <i class="bi bi-camera-fill me-1"></i> Capture Photo
                                     </button>
-                                    <button type="button" id="retakeBtn" class="btn btn-warning btn-sm px-3" style="display:none;" onclick="retakePhoto()">
+                                    <button type="button" id="retakeBtn" class="btn btn-warning btn-sm px-4 py-2" style="display:none;" onclick="retakePhoto()">
                                         <i class="bi bi-arrow-repeat me-1"></i> Retake Photo
                                     </button>
                                     <input type="hidden" name="captured_photo" id="capturedPhotoData">
@@ -87,17 +96,18 @@
                             </div>
                             <!-- Upload Tab -->
                             <div class="tab-pane fade" id="uploadTab">
-                                <div class="py-2">
+                                <div class="py-3 px-2">
+                                    <label class="form-label fw-semibold">Choose Student Photo (JPG / PNG):</label>
                                     <input type="file" name="photo" id="photoInput" class="form-control mb-2" accept=".jpg,.jpeg,.png">
-                                    <small class="text-muted d-block">
-                                        <i class="bi bi-info-circle me-1"></i> Upload a clear front-facing student photo (JPG, PNG). The system will automatically detect the face.
-                                    </small>
+                                    <div class="alert alert-info py-2 small mb-0">
+                                        <i class="bi bi-check-circle-fill me-1 text-primary"></i> <strong>Instant Face Detection:</strong> Upload any clear selfie or ID photo. The system will detect and encode the face automatically.
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <button type="submit" class="btn btn-primary w-100 py-2">
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
                         <i class="bi bi-person-check me-2"></i> Register Student
                     </button>
                 </form>
@@ -111,6 +121,29 @@
 <script>
 let stream = null;
 
+// Populate camera dropdown on load
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(d => d.kind === 'videoinput');
+            const select = document.getElementById('cameraSourceSelect');
+
+            if (videoDevices.length > 0) {
+                select.innerHTML = '';
+                videoDevices.forEach((dev, idx) => {
+                    const opt = document.createElement('option');
+                    opt.value = dev.deviceId;
+                    opt.textContent = dev.label || `Camera ${idx + 1}`;
+                    select.appendChild(opt);
+                });
+            }
+        }
+    } catch (e) {
+        console.warn('Could not list video devices:', e);
+    }
+});
+
 function switchToUploadTab() {
     const uploadTabBtn = document.getElementById('upload-tab-btn');
     const tab = new bootstrap.Tab(uploadTabBtn);
@@ -123,15 +156,24 @@ async function startCamera() {
     const captureBtn = document.getElementById('captureBtn');
     const errorBox = document.getElementById('cameraErrorBox');
     const errorMsg = document.getElementById('cameraErrorMsg');
+    const select = document.getElementById('cameraSourceSelect');
 
     errorBox.style.display = 'none';
 
-    // Try standard flexible constraints first, fallback to pure { video: true }
-    const constraintsList = [
-        { video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" } },
-        { video: { width: { ideal: 640 }, height: { ideal: 480 } } },
-        { video: true }
-    ];
+    // Stop existing stream if any
+    if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+    }
+
+    const selectedDeviceId = select.value;
+    const constraintsList = [];
+
+    if (selectedDeviceId) {
+        constraintsList.push({ video: { deviceId: { exact: selectedDeviceId } } });
+    }
+    constraintsList.push({ video: { facingMode: "user" } });
+    constraintsList.push({ video: true });
 
     let success = false;
     let lastError = null;
