@@ -5,49 +5,96 @@
 {% block content %}
 <div class="row">
     <div class="col-md-8">
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <h6 class="mb-0">Live Camera Feed</h6>
-                <div>
-                    <button class="btn btn-success btn-sm" id="startBtn" onclick="startAttendance()">
-                        <i class="bi bi-play-fill me-1"></i> Start
-                    </button>
-                    <button class="btn btn-danger btn-sm" id="stopBtn" onclick="stopAttendance()" style="display:none;">
-                        <i class="bi bi-stop-fill me-1"></i> Stop
-                    </button>
-                </div>
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white p-3">
+                <ul class="nav nav-pills card-header-pills" id="attendanceModeTab" role="tablist">
+                    <li class="nav-item">
+                        <button class="nav-link active" id="tab-live-btn" data-bs-toggle="pill" data-bs-target="#tab-live" type="button">
+                            <i class="bi bi-camera-video me-1"></i> Live Camera Feed
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" id="tab-photo-btn" data-bs-toggle="pill" data-bs-target="#tab-photo" type="button">
+                            <i class="bi bi-image me-1"></i> Photo Attendance (Always Works)
+                        </button>
+                    </li>
+                </ul>
             </div>
-            <div class="card-body text-center">
-                <div id="cameraPlaceholder" class="bg-light rounded d-flex align-items-center justify-content-center" style="height:400px;">
-                    <div class="text-muted">
-                        <i class="bi bi-camera-video display-1"></i>
-                        <p class="mt-2">Click "Start" to begin attendance</p>
+            <div class="card-body p-4">
+                <div class="tab-content" id="attendanceModeTabContent">
+                    <!-- Tab 1: Live Camera Feed -->
+                    <div class="tab-pane fade show active" id="tab-live">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="small text-muted"><i class="bi bi-info-circle me-1"></i> Continuous real-time facial recognition via camera</span>
+                            <div>
+                                <button class="btn btn-success btn-sm px-3" id="startBtn" onclick="startAttendance()">
+                                    <i class="bi bi-play-fill me-1"></i> Start Camera
+                                </button>
+                                <button class="btn btn-danger btn-sm px-3" id="stopBtn" onclick="stopAttendance()" style="display:none;">
+                                    <i class="bi bi-stop-fill me-1"></i> Stop Camera
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="text-center">
+                            <div id="cameraPlaceholder" class="bg-light rounded d-flex flex-column align-items-center justify-content-center p-5" style="min-height: 380px;">
+                                <i class="bi bi-camera-video display-1 text-secondary opacity-50 mb-3"></i>
+                                <h6 class="fw-semibold text-dark mb-1">Live Camera Standby</h6>
+                                <p class="text-muted small mb-3">Click "Start Camera" above to begin facial scanning</p>
+                                <button class="btn btn-outline-primary btn-sm" onclick="switchToPhotoTab()">
+                                    <i class="bi bi-upload me-1"></i> Or scan a photo directly
+                                </button>
+                            </div>
+                            <img id="cameraFeed" src="" class="rounded shadow-sm img-fluid" style="max-height: 420px; display: none;">
+                        </div>
+                    </div>
+
+                    <!-- Tab 2: Photo Attendance -->
+                    <div class="tab-pane fade" id="tab-photo">
+                        <div class="p-3 border rounded bg-light mb-3">
+                            <h6 class="fw-bold mb-1"><i class="bi bi-person-bounding-box me-1 text-primary"></i> Instant Photo Recognition</h6>
+                            <p class="text-muted small mb-3">Upload a student photo or selfie to recognize their face and mark attendance immediately in the database.</p>
+
+                            <form id="photoAttendanceForm" enctype="multipart/form-data">
+                                <div class="mb-3">
+                                    <input type="file" id="scanPhotoInput" class="form-control" accept=".jpg,.jpeg,.png" onchange="previewScanPhoto(event)">
+                                </div>
+                                <div id="scanPhotoPreviewContainer" class="text-center mb-3" style="display:none;">
+                                    <img id="scanPhotoPreview" src="" class="rounded border shadow-sm" style="max-height: 220px; max-width: 100%;">
+                                </div>
+                                <button type="button" id="scanPhotoBtn" class="btn btn-primary w-100 py-2" onclick="submitPhotoAttendance()">
+                                    <i class="bi bi-upc-scan me-2"></i> Scan Face & Mark Attendance
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
-                <img id="cameraFeed" src="" class="rounded" style="max-width:100%; display:none;">
             </div>
         </div>
     </div>
 
     <div class="col-md-4">
+        <!-- Recognition Status -->
         <div class="card border-0 shadow-sm mb-3">
             <div class="card-header bg-white">
-                <h6 class="mb-0"><i class="bi bi-person-check me-2"></i>Recognition Status</h6>
+                <h6 class="mb-0"><i class="bi bi-person-check me-2 text-primary"></i>Recognition Status</h6>
             </div>
-            <div class="card-body text-center" id="recognitionStatus">
-                <p class="text-muted">Waiting to start...</p>
+            <div class="card-body text-center p-4" id="recognitionStatus">
+                <i class="bi bi-shield-check display-4 text-muted opacity-50 mb-2"></i>
+                <p class="text-muted small mb-0">Waiting to scan faces...</p>
             </div>
         </div>
 
+        <!-- Today's Log -->
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <h6 class="mb-0"><i class="bi bi-list-check me-2"></i>Attendance Log</h6>
+                <h6 class="mb-0"><i class="bi bi-list-check me-2 text-success"></i>Session Attendance Log</h6>
                 <span class="badge bg-primary" id="logCount">0</span>
             </div>
-            <div class="card-body p-0" style="max-height:400px; overflow-y:auto;">
+            <div class="card-body p-0" style="max-height: 400px; overflow-y: auto;">
                 <ul class="list-group list-group-flush" id="attendanceLog">
-                    <li class="list-group-item text-center text-muted py-4">
-                        No entries yet
+                    <li class="list-group-item text-center text-muted py-4 small">
+                        No attendance marked in this session yet
                     </li>
                 </ul>
             </div>
@@ -60,9 +107,13 @@
 <script>
 let recognitionInterval = null;
 let logCount = 0;
-
-// [FIX C2] Get CSRF token for AJAX requests
 const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+function switchToPhotoTab() {
+    const photoTabBtn = document.getElementById('tab-photo-btn');
+    const tab = new bootstrap.Tab(photoTabBtn);
+    tab.show();
+}
 
 function startAttendance() {
     const feed = document.getElementById('cameraFeed');
@@ -77,9 +128,9 @@ function startAttendance() {
     stopBtn.style.display = 'inline-block';
 
     document.getElementById('recognitionStatus').innerHTML =
-        '<div class="spinner-border text-primary" role="status"></div><p class="mt-2">Scanning faces...</p>';
+        '<div class="spinner-border text-primary mb-2" role="status"></div><p class="small text-muted">Scanning for faces...</p>';
 
-    recognitionInterval = setInterval(recognizeFace, 3000);
+    recognitionInterval = setInterval(recognizeLiveFeed, 3000);
 }
 
 function stopAttendance() {
@@ -88,7 +139,10 @@ function stopAttendance() {
     const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
 
-    clearInterval(recognitionInterval);
+    if (recognitionInterval) {
+        clearInterval(recognitionInterval);
+        recognitionInterval = null;
+    }
 
     fetch("{{ url_for('api_stop_camera') }}", {
         method: 'POST',
@@ -102,56 +156,101 @@ function stopAttendance() {
     stopBtn.style.display = 'none';
 
     document.getElementById('recognitionStatus').innerHTML =
-        '<p class="text-muted">Camera stopped.</p>';
+        '<p class="text-muted small mb-0">Camera stopped.</p>';
 }
 
-// [FIX H5] HTML escape function to prevent XSS
 function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
 }
 
-function recognizeFace() {
+function displayRecognitionResult(data) {
+    const status = document.getElementById('recognitionStatus');
+
+    if (data.status === 'success') {
+        status.innerHTML = `
+            <div class="text-success">
+                <i class="bi bi-check-circle-fill display-4"></i>
+                <h5 class="mt-2 fw-bold text-dark">${escapeHtml(data.name)}</h5>
+                <p class="mb-1 text-secondary small">Roll: <strong>${escapeHtml(data.roll_no)}</strong></p>
+                <div class="badge bg-success mb-2">Confidence: ${escapeHtml(String(data.confidence))}%</div><br>
+                <small class="${data.newly_marked ? 'text-success fw-bold' : 'text-warning'}">${escapeHtml(data.message)}</small>
+            </div>
+        `;
+        if (data.newly_marked) {
+            addToLog(data.name, data.roll_no);
+        }
+    } else if (data.status === 'unknown') {
+        status.innerHTML = `
+            <div class="text-warning">
+                <i class="bi bi-question-circle display-4"></i>
+                <h6 class="mt-2 text-dark fw-bold">Unknown Person</h6>
+                <p class="text-muted small">${escapeHtml(data.message)}</p>
+            </div>
+        `;
+    } else {
+        status.innerHTML = `
+            <div class="text-secondary">
+                <i class="bi bi-info-circle display-4 text-warning"></i>
+                <p class="mt-2 small text-muted">${escapeHtml(data.message)}</p>
+            </div>
+        `;
+    }
+}
+
+function recognizeLiveFeed() {
     fetch("{{ url_for('api_recognize') }}", {
         method: 'POST',
         headers: { 'X-CSRFToken': csrfToken }
     })
-        .then(res => res.json())
-        .then(data => {
-            const status = document.getElementById('recognitionStatus');
+    .then(res => res.json())
+    .then(data => displayRecognitionResult(data))
+    .catch(err => console.error('Recognition error:', err));
+}
 
-            if (data.status === 'success') {
-                // [FIX H5] Use escapeHtml to prevent XSS from student names
-                status.innerHTML = `
-                    <div class="text-success">
-                        <i class="bi bi-check-circle display-4"></i>
-                        <h5 class="mt-2">${escapeHtml(data.name)}</h5>
-                        <p>Roll: ${escapeHtml(data.roll_no)}</p>
-                        <p>Confidence: ${escapeHtml(String(data.confidence))}%</p>
-                        <small class="${data.newly_marked ? 'text-success' : 'text-warning'}">${escapeHtml(data.message)}</small>
-                    </div>
-                `;
-                if (data.newly_marked) {
-                    addToLog(data.name, data.roll_no);
-                }
-            } else if (data.status === 'unknown') {
-                status.innerHTML = `
-                    <div class="text-warning">
-                        <i class="bi bi-question-circle display-4"></i>
-                        <p class="mt-2">Unknown Person</p>
-                    </div>
-                `;
-            } else {
-                status.innerHTML = `
-                    <div class="text-muted">
-                        <i class="bi bi-search display-4"></i>
-                        <p class="mt-2">${escapeHtml(data.message)}</p>
-                    </div>
-                `;
-            }
-        })
-        .catch(err => console.error('Recognition error:', err));
+function previewScanPhoto(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            document.getElementById('scanPhotoPreview').src = evt.target.result;
+            document.getElementById('scanPhotoPreviewContainer').style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function submitPhotoAttendance() {
+    const fileInput = document.getElementById('scanPhotoInput');
+    if (!fileInput.files || fileInput.files.length === 0) {
+        alert('Please choose a photo to scan.');
+        return;
+    }
+
+    const scanBtn = document.getElementById('scanPhotoBtn');
+    scanBtn.disabled = true;
+    scanBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Analyzing Face...';
+
+    const formData = new FormData();
+    formData.append('photo', fileInput.files[0]);
+
+    fetch("{{ url_for('api_recognize_photo') }}", {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken },
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        scanBtn.disabled = false;
+        scanBtn.innerHTML = '<i class="bi bi-upc-scan me-2"></i> Scan Face & Mark Attendance';
+        displayRecognitionResult(data);
+    })
+    .catch(err => {
+        scanBtn.disabled = false;
+        scanBtn.innerHTML = '<i class="bi bi-upc-scan me-2"></i> Scan Face & Mark Attendance';
+        alert('Error processing photo: ' + err.message);
+    });
 }
 
 function addToLog(name, rollNo) {
@@ -163,17 +262,15 @@ function addToLog(name, rollNo) {
     document.getElementById('logCount').textContent = logCount;
 
     const item = document.createElement('li');
-    item.className = 'list-group-item d-flex justify-content-between align-items-center';
+    item.className = 'list-group-item d-flex justify-content-between align-items-center py-2 px-3';
 
-    // [FIX H5] Use textContent for user-supplied data
     const infoDiv = document.createElement('div');
     const nameEl = document.createElement('strong');
     nameEl.textContent = name;
     const rollEl = document.createElement('small');
-    rollEl.className = 'text-muted';
+    rollEl.className = 'text-muted d-block';
     rollEl.textContent = rollNo;
     infoDiv.appendChild(nameEl);
-    infoDiv.appendChild(document.createElement('br'));
     infoDiv.appendChild(rollEl);
 
     const badge = document.createElement('span');

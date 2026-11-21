@@ -336,7 +336,7 @@ def api_recognize():
     """API endpoint: capture frame, recognize face, mark attendance."""
     success, frame = camera.get_frame()
     if not success:
-        return jsonify({"status": "error", "message": "Cannot access camera"})
+        return jsonify({"status": "error", "message": "Physical camera unavailable. Please use Photo Attendance."})
 
     encoding, face_location, error = encode_face_from_frame(frame)
     if error:
@@ -357,6 +357,50 @@ def api_recognize():
         })
     else:
         return jsonify({"status": "unknown", "message": "Face not recognized"})
+
+
+@app.route("/api/recognize_photo", methods=["POST"])
+@login_required
+def api_recognize_photo():
+    """API endpoint: recognize face from an uploaded photo or browser snapshot and mark attendance."""
+    photo = request.files.get("photo")
+    captured_data = request.form.get("captured_photo")
+
+    frame = None
+    if photo and photo.filename:
+        file_bytes = np.frombuffer(photo.read(), np.uint8)
+        frame = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+    elif captured_data:
+        try:
+            img_data = captured_data.split(",")[1]
+            img_bytes = base64.b64decode(img_data)
+            nparr = np.frombuffer(img_bytes, np.uint8)
+            frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        except Exception:
+            return jsonify({"status": "error", "message": "Invalid photo data."})
+
+    if frame is None:
+        return jsonify({"status": "error", "message": "Please choose or capture a photo."})
+
+    encoding, face_location, error = encode_face_from_frame(frame)
+    if error:
+        return jsonify({"status": "error", "message": error})
+
+    known_faces = get_all_face_encodings()
+    match = recognize_face(encoding, known_faces)
+
+    if match:
+        newly_marked = mark_attendance(match["id"])
+        return jsonify({
+            "status": "success",
+            "name": match["name"],
+            "roll_no": match["roll_no"],
+            "confidence": match["confidence"],
+            "newly_marked": newly_marked,
+            "message": f"{'Attendance marked for' if newly_marked else 'Already marked today for'} {match['name']}",
+        })
+    else:
+        return jsonify({"status": "unknown", "message": "Face not recognized. Student may not be registered yet."})
 
 
 @app.route("/api/stop_camera", methods=["POST"])
