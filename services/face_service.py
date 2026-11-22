@@ -1,8 +1,10 @@
 """
 Face detection, encoding, and recognition service.
-Supports both:
-  1. dlib face_recognition (if installed)
-  2. Built-in OpenCV Haar Cascade + Normalized Face Feature Extractor (100% offline, zero C++ compiler needed)
+Supports:
+  1. Built-in OpenCV LBPH (Local Binary Patterns Histograms) - 100% offline, zero C++ compiler needed,
+     providing high discriminability between different individuals and resilience to lighting variations.
+  2. Multi-face recognition in a single frame (supports multiple students simultaneously or sequentially).
+  3. Optional dlib face_recognition (if installed).
 """
 import os
 import cv2
@@ -17,6 +19,9 @@ except ImportError:
     face_recognition = None
     FACE_RECOGNITION_LIB_AVAILABLE = False
 
+# Check if OpenCV LBPH face recognizer is available
+HAS_CV2_FACE = hasattr(cv2, "face") and hasattr(cv2.face, "LBPHFaceRecognizer_create")
+
 # Built-in OpenCV Haar Cascade face detector
 HAAR_CASCADE_PATH = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
 face_cascade = cv2.CascadeClassifier(HAAR_CASCADE_PATH)
@@ -24,42 +29,44 @@ face_cascade = cv2.CascadeClassifier(HAAR_CASCADE_PATH)
 
 def extract_opencv_embedding(face_img):
     """
-    Extract a normalized, illumination-invariant 456-dimensional
-    face embedding using spatial block intensity histograms and gradients.
+    Extract a high-discriminability 16,384-dimensional LBPH histogram
+    vector (or normalized spatial histogram fallback) from a detected face image.
     """
     if len(face_img.shape) == 3:
         gray = cv2.cvtColor(face_img, cv2.COLOR_BGR2GRAY)
     else:
         gray = face_img
 
-    # Standardize to 100x100 and equalize illumination
-    resized = cv2.resize(gray, (100, 100))
+    # Standardize to 120x120 and equalize illumination to remove shadows
+    resized = cv2.resize(gray, (120, 120))
     equalized = cv2.equalizeHist(resized)
 
-    # Spatial block histograms (5x5 grid = 25 cells * 8 bins = 200 features)
-    features = []
-    cell_h, cell_w = 20, 20
-    for r in range(5):
-        for c in range(5):
-            cell = equalized[r * cell_h:(r + 1) * cell_h, c * cell_w:(c + 1) * cell_w]
-            hist = cv2.calcHist([cell], [0], None, [8], [0, 256]).flatten()
-            features.extend(hist)
-
-    # Downsampled structural pixel intensities (16x16 = 256 features)
-    struct = cv2.resize(equalized, (16, 16)).flatten().astype(np.float64)
-    features.extend(struct)
-
-    # L2-normalize feature vector
-    vec = np.array(features, dtype=np.float64)
-    norm = np.linalg.norm(vec)
-    if norm > 0:
-        vec = vec / norm
-    return vec
+    if HAS_CV2_FACE:
+        # True OpenCV LBPH Recognizer: 8x8 spatial grid, radius=1, neighbors=8
+        # Output: 8*8*256 = 16,384 histogram bins with high spatial facial discrimination
+        rec = cv2.face.LBPHFaceRecognizer_create(radius=1, neighbors=8, grid_x=8, grid_y=8)
+        rec.train([equalized], np.array([1]))
+        hist = rec.getHistograms()[0].flatten().astype(np.float32)
+        return hist
+    else:
+        # Fallback spatial block histogram (456-d) if cv2.face is unavailable
+        features = []
+        cell_h, cell_w = 24, 24
+        for r in range(5):
+            for c in range(5):
+                cell = equalized[r * cell_h:(r + 1) * cell_h, c * cell_w:(c + 1) * cell_w]
+                h = cv2.calcHist([cell], [0], None, [8], [0, 256]).flatten()
+                features.extend(h)
+        struct = cv2.resize(equalized, (16, 16)).flatten().astype(np.float32)
+        features.extend(struct)
+        vec = np.array(features, dtype=np.float32)
+        norm = np.linalg.norm(vec)
+        return vec / norm if norm > 0 else vec
 
 
 def detect_and_encode_face(image_path):
     """
-    Detect a face in an image and return its embedding.
+    Detect a face in an image file and return its embedding.
     Returns (encoding, error_message) tuple.
     """
     # 1. Try face_recognition library if available
@@ -76,10 +83,9 @@ def detect_and_encode_face(image_path):
             encodings = face_recognition.face_encodings(image, face_locations)
             return encodings[0], None
         except Exception:
-            pass  # Fallback to OpenCV engine
+            pass
 
-    # 2. Native OpenCV Engine (Always works)
-    # Read image safely supporting unicode paths
+    # 2. Native OpenCV Engine
     try:
         img_array = np.fromfile(image_path, np.uint8)
         img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
@@ -89,26 +95,20 @@ def detect_and_encode_face(image_path):
     if img is None:
         return None, "Could not open image file. Please upload a valid JPG or PNG."
 
-    # Check for completely black/dark image (e.g. laptop camera privacy shutter closed)
+    # Check for completely black/dark image (e.g. webcam privacy shutter closed)
     if np.mean(img) < 15:
         return None, "Camera image is completely pitch black. Please check if your laptop's physical webcam privacy slider (shutter) above the screen is closed, or use 'Option B: Upload Photo'."
 
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    faces = face_cascade.detectMultiScale(
-        gray,
-        scaleFactor=1.1,
-        minNeighbors=4,
-        minSize=(60, 60),
-    )
+    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4, minSize=(60, 60))
 
     if len(faces) == 0:
-        # Try a slightly more lenient detection scale for small/distant faces
         faces = face_cascade.detectMultiScale(gray, scaleFactor=1.05, minNeighbors=3, minSize=(40, 40))
 
     if len(faces) == 0:
         return None, "No face detected in the image. Please use a clear, well-lit front-facing photo."
 
-    # Pick the largest face in the photo
+    # Select largest face
     largest_face = max(faces, key=lambda rect: rect[2] * rect[3])
     x, y, w, h = largest_face
     face_roi = gray[y:y + h, x:x + w]
@@ -122,31 +122,21 @@ def encode_face_from_frame(frame):
     Detect and encode a face from an OpenCV video frame (BGR).
     Returns (encoding, face_location, error_message).
     """
-    # 1. Try face_recognition if available
-    if FACE_RECOGNITION_LIB_AVAILABLE:
-        try:
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            small_frame = cv2.resize(rgb_frame, (0, 0), fx=0.5, fy=0.5)
-            face_locations = face_recognition.face_locations(small_frame, model=Config.FACE_RECOGNITION_MODEL)
-
-            if len(face_locations) > 0:
-                encodings = face_recognition.face_encodings(small_frame, face_locations)
-                top, right, bottom, left = face_locations[0]
-                face_location = (top * 2, right * 2, bottom * 2, left * 2)
-                return encodings[0], face_location, None
-        except Exception:
-            pass
+    if frame is None or frame.size == 0:
+        return None, None, "Invalid camera frame received."
 
     # Check for pitch black frame (e.g. privacy shutter closed)
     if np.mean(frame) < 15:
         return None, None, "Camera feed is black/dark. Check laptop webcam shutter or use Photo Attendance."
 
-    # 2. Native OpenCV detection
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.15, minNeighbors=4, minSize=(70, 70))
+    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.12, minNeighbors=4, minSize=(60, 60))
 
     if len(faces) == 0:
-        return None, None, "No face detected"
+        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.05, minNeighbors=3, minSize=(40, 40))
+
+    if len(faces) == 0:
+        return None, None, "No face detected in camera viewfinder."
 
     # Select largest face
     x, y, w, h = max(faces, key=lambda rect: rect[2] * rect[3])
@@ -157,50 +147,113 @@ def encode_face_from_frame(frame):
     return encoding, face_location, None
 
 
-def recognize_face(unknown_encoding, known_faces):
+def detect_all_faces_and_encode(frame):
+    """
+    Detect ALL faces present in a video frame.
+    Returns list of dicts: [{'encoding': ..., 'location': (top, right, bottom, left), 'box': (x,y,w,h)}]
+    """
+    if frame is None or frame.size == 0:
+        return []
+
+    if np.mean(frame) < 15:
+        return []
+
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.12, minNeighbors=4, minSize=(55, 55))
+
+    detected = []
+    for (x, y, w, h) in faces:
+        face_roi = gray[y:y + h, x:x + w]
+        enc = extract_opencv_embedding(face_roi)
+        loc = (int(y), int(x + w), int(y + h), int(x))
+        detected.append({
+            "encoding": enc,
+            "location": loc,
+            "box": (int(x), int(y), int(w), int(h))
+        })
+    return detected
+
+
+def recognize_face(unknown_encoding, known_faces, threshold=None):
     """
     Compare an unknown face encoding against registered faces.
-    Returns matched student info or None.
+    Returns matched student dict with confidence or None.
     """
     if not known_faces or unknown_encoding is None:
         return None
 
     best_match = None
     min_dist = float("inf")
-
-    # Check whether encoding is 128-d (dlib) or 456-d (OpenCV)
-    is_dlib = (len(unknown_encoding) == 128)
+    enc_len = len(unknown_encoding)
 
     for student in known_faces:
-        stored_enc = student["encoding"]
-        if len(stored_enc) != len(unknown_encoding):
+        stored_enc = student.get("encoding")
+        if stored_enc is None or len(stored_enc) != enc_len:
             continue
 
-        if is_dlib:
-            dist = np.linalg.norm(stored_enc - unknown_encoding)
-            threshold = 0.50
+        if enc_len == 16384:
+            # OpenCV LBPH Chi-Square distance
+            s_vec = np.ascontiguousarray(stored_enc, dtype=np.float32)
+            u_vec = np.ascontiguousarray(unknown_encoding, dtype=np.float32)
+            dist = float(cv2.compareHist(s_vec, u_vec, cv2.HISTCMP_CHISQR))
+            eff_threshold = threshold if threshold is not None else 85.0
+        elif enc_len == 128:
+            # dlib Euclidean distance
+            dist = float(np.linalg.norm(stored_enc - unknown_encoding))
+            eff_threshold = threshold if threshold is not None else 0.50
         else:
-            # Cosine distance between normalized vectors: 0 (identical) to 2 (opposite)
-            sim = np.dot(stored_enc, unknown_encoding)
-            dist = 1.0 - float(sim)
-            threshold = 0.38
+            # Cosine distance
+            sim = float(np.dot(stored_enc, unknown_encoding))
+            dist = 1.0 - sim
+            eff_threshold = threshold if threshold is not None else 0.38
 
         if dist < min_dist:
             min_dist = dist
             best_match = student
 
-    if best_match and min_dist <= threshold:
-        confidence = round(max(0.0, (1.0 - (min_dist / threshold)) * 100), 1)
-        # Ensure confidence displays reasonably (65% - 98%)
-        display_confidence = round(65.0 + (confidence * 0.33), 1)
+    if best_match is not None and min_dist <= eff_threshold:
+        if enc_len == 16384:
+            # Scale confidence: 0 distance -> 99.5%, 85.0 distance -> 70.0%
+            conf = max(70.0, 100.0 - (min_dist / eff_threshold) * 30.0)
+        elif enc_len == 128:
+            conf = max(70.0, (1.0 - (min_dist / eff_threshold)) * 100.0)
+        else:
+            conf = max(70.0, (1.0 - (min_dist / eff_threshold)) * 100.0)
+
         return {
             "id": best_match["id"],
             "name": best_match["name"],
             "roll_no": best_match["roll_no"],
-            "confidence": min(display_confidence, 99.0),
+            "confidence": min(round(conf, 1), 99.5),
+            "distance": round(float(min_dist), 2),
         }
 
     return None
+
+
+def recognize_all_faces(frame, known_faces, threshold=85.0):
+    """
+    Detect and recognize ALL faces in a frame against known registered students.
+    Returns tuple: (list_of_matched_students, total_detected_faces_count)
+    Matches are deduplicated by student ID.
+    """
+    detected_faces = detect_all_faces_and_encode(frame)
+    if not detected_faces:
+        return [], 0
+
+    matched = []
+    seen_ids = set()
+
+    for item in detected_faces:
+        enc = item["encoding"]
+        match = recognize_face(enc, known_faces, threshold=threshold)
+        if match and match["id"] not in seen_ids:
+            seen_ids.add(match["id"])
+            match["box"] = item["box"]
+            match["location"] = item["location"]
+            matched.append(match)
+
+    return matched, len(detected_faces)
 
 
 def save_captured_photo(frame, roll_no):

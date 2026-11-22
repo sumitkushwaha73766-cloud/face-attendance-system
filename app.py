@@ -34,7 +34,10 @@ from models.attendance import (
     get_attendance_report, get_student_attendance_percentage,
     get_weekly_trend,
 )
-from services.face_service import detect_and_encode_face, encode_face_from_frame, recognize_face
+from services.face_service import (
+    detect_and_encode_face, encode_face_from_frame, recognize_face,
+    recognize_all_faces, detect_all_faces_and_encode,
+)
 from services.camera_service import camera
 from services.report_service import generate_excel_report, generate_pdf_report
 from services.email_service import send_attendance_summary
@@ -361,59 +364,121 @@ def video_feed():
     )
 
 
+def process_biometric_frame(frame):
+    """
+    Core recognition & attendance marking pipeline for a video frame or uploaded photo.
+    Detects all faces in frame, recognizes them against registered students, restricts multiple
+    attendance check-ins per student per day, and marks attendance for all newly verified students.
+    """
+    if frame is None or frame.size == 0:
+        return {"status": "error", "message": "Invalid camera frame received."}
+
+    # Physical camera privacy shutter or black frame check
+    if np.mean(frame) < 15:
+        return {
+            "status": "error",
+            "message": "Camera feed is black/dark. Check laptop webcam shutter or use Photo Attendance."
+        }
+
+    known_faces = get_all_face_encodings()
+    if not known_faces:
+        return {
+            "status": "unknown",
+            "message": "No students are currently registered in the database. Please register students first."
+        }
+
+    matches, detected_count = recognize_all_faces(frame, known_faces)
+
+    if detected_count == 0:
+        return {"status": "error", "message": "No face detected in camera viewfinder. Please face the camera clearly."}
+
+    if not matches:
+        return {"status": "unknown", "message": "Face not recognized. Student may not be registered yet."}
+
+    # Separate into newly marked and already marked today
+    newly_marked = []
+    already_marked = []
+
+    for match in matches:
+        s_id = match["id"]
+        is_already, record = check_already_marked_today(s_id)
+        student_info = get_student_by_id(s_id)
+        class_str = f"{student_info['class_name']} - {student_info['section']}" if student_info else "Registered"
+        photo_path = student_info["photo_path"] if student_info and "photo_path" in student_info.keys() else ""
+
+        match_data = {
+            "id": s_id,
+            "name": match["name"],
+            "roll_no": match["roll_no"],
+            "class_name": class_str,
+            "photo_path": photo_path,
+            "confidence": match["confidence"],
+        }
+
+        if is_already:
+            match_data["time"] = record["time"]
+            already_marked.append(match_data)
+        else:
+            mark_attendance(s_id)
+            match_data["time"] = datetime.now().strftime("%I:%M:%S %p")
+            newly_marked.append(match_data)
+
+    summary = get_today_summary()
+    now_time = datetime.now().strftime("%I:%M:%S %p")
+
+    if newly_marked:
+        lead = newly_marked[0]
+        names_marked = [m["name"] for m in newly_marked]
+        if len(newly_marked) == 1:
+            msg = f"Attendance marked for {lead['name']} ({lead['roll_no']}) at {lead['time']}."
+            if already_marked:
+                already_names = ", ".join([a["name"] for a in already_marked])
+                msg += f" ({already_names} already marked today)"
+        else:
+            msg = f"Attendance marked for {len(newly_marked)} students: {', '.join(names_marked)} at {now_time}!"
+
+        return {
+            "status": "success",
+            "name": lead["name"],
+            "roll_no": lead["roll_no"],
+            "class_name": lead["class_name"],
+            "time": lead["time"],
+            "photo_path": lead["photo_path"],
+            "confidence": lead["confidence"],
+            "newly_marked": True,
+            "marked_students": newly_marked,
+            "already_marked_students": already_marked,
+            "today_present": summary.get("present", 0),
+            "message": msg,
+        }
+    else:
+        lead = already_marked[0]
+        return {
+            "status": "already_marked",
+            "name": lead["name"],
+            "roll_no": lead["roll_no"],
+            "class_name": lead["class_name"],
+            "time": lead["time"],
+            "photo_path": lead["photo_path"],
+            "confidence": lead["confidence"],
+            "already_marked_students": already_marked,
+            "today_present": summary.get("present", 0),
+            "message": f"{lead['name']} is already marked present today (at {lead['time']}). Multiple check-ins are restricted.",
+        }
+
+
 @app.route("/api/recognize", methods=["POST"])
 def api_recognize():
     """API endpoint: capture frame, recognize face, mark attendance in 1 click."""
     success, frame = camera.get_frame()
     if not success:
-        return jsonify({"status": "error", "message": "Physical camera unavailable. Please open camera shutter or use Photo Attendance."})
-
-    encoding, face_location, error = encode_face_from_frame(frame)
-    if error:
-        return jsonify({"status": "error", "message": error})
-
-    known_faces = get_all_face_encodings()
-    match = recognize_face(encoding, known_faces)
-
-    if match:
-        already_marked, record = check_already_marked_today(match["id"])
-        student = get_student_by_id(match["id"])
-        class_str = f"{student['class_name']} - {student['section']}" if student else "Registered"
-        photo_path = student["photo_path"] if student and "photo_path" in student.keys() else ""
-        summary = get_today_summary()
-
-        if already_marked:
-            recorded_time = record["time"]
-            return jsonify({
-                "status": "already_marked",
-                "name": match["name"],
-                "roll_no": match["roll_no"],
-                "class_name": class_str,
-                "time": recorded_time,
-                "photo_path": photo_path,
-                "confidence": match["confidence"],
-                "today_present": summary.get("present", 0),
-                "message": f"{match['name']} is already marked present today (at {recorded_time}). Multiple check-ins are restricted.",
-            })
-
-        newly_marked = mark_attendance(match["id"])
-        now_time = datetime.now().strftime("%I:%M:%S %p")
-        summary = get_today_summary()
-
         return jsonify({
-            "status": "success",
-            "name": match["name"],
-            "roll_no": match["roll_no"],
-            "class_name": class_str,
-            "time": now_time,
-            "photo_path": photo_path,
-            "confidence": match["confidence"],
-            "newly_marked": True,
-            "today_present": summary.get("present", 0),
-            "message": f"Attendance marked for {match['name']} at {now_time}.",
+            "status": "error",
+            "message": "Physical camera unavailable. Please open camera shutter or use Photo Attendance."
         })
-    else:
-        return jsonify({"status": "unknown", "message": "Face not recognized. Student may not be registered yet."})
+
+    result = process_biometric_frame(frame)
+    return jsonify(result)
 
 
 @app.route("/api/recognize_photo", methods=["POST"])
@@ -438,52 +503,8 @@ def api_recognize_photo():
     if frame is None:
         return jsonify({"status": "error", "message": "Please choose or capture a photo."})
 
-    encoding, face_location, error = encode_face_from_frame(frame)
-    if error:
-        return jsonify({"status": "error", "message": error})
-
-    known_faces = get_all_face_encodings()
-    match = recognize_face(encoding, known_faces)
-
-    if match:
-        already_marked, record = check_already_marked_today(match["id"])
-        student = get_student_by_id(match["id"])
-        class_str = f"{student['class_name']} - {student['section']}" if student else "Registered"
-        photo_path = student["photo_path"] if student and "photo_path" in student.keys() else ""
-        summary = get_today_summary()
-
-        if already_marked:
-            recorded_time = record["time"]
-            return jsonify({
-                "status": "already_marked",
-                "name": match["name"],
-                "roll_no": match["roll_no"],
-                "class_name": class_str,
-                "time": recorded_time,
-                "photo_path": photo_path,
-                "confidence": match["confidence"],
-                "today_present": summary.get("present", 0),
-                "message": f"{match['name']} is already marked present today (at {recorded_time}). Multiple check-ins are restricted.",
-            })
-
-        newly_marked = mark_attendance(match["id"])
-        now_time = datetime.now().strftime("%I:%M:%S %p")
-        summary = get_today_summary()
-
-        return jsonify({
-            "status": "success",
-            "name": match["name"],
-            "roll_no": match["roll_no"],
-            "class_name": class_str,
-            "time": now_time,
-            "photo_path": photo_path,
-            "confidence": match["confidence"],
-            "newly_marked": True,
-            "today_present": summary.get("present", 0),
-            "message": f"Attendance marked for {match['name']} at {now_time}.",
-        })
-    else:
-        return jsonify({"status": "unknown", "message": "Face not recognized. Student may not be registered yet."})
+    result = process_biometric_frame(frame)
+    return jsonify(result)
 
 
 @app.route("/api/kiosk_stats")

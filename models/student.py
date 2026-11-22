@@ -103,7 +103,25 @@ def get_all_face_encodings():
 
     results = []
     for row in rows:
-        encoding = np.frombuffer(row["face_encoding"], dtype=np.float64)
+        blob = row["face_encoding"]
+        if blob is None:
+            continue
+        blob_len = len(blob)
+        if blob_len == 16384 * 4:
+            # OpenCV LBPH histogram (16,384 float32 values)
+            encoding = np.frombuffer(blob, dtype=np.float32)
+        elif blob_len == 128 * 8:
+            # dlib 128-d vector (float64)
+            encoding = np.frombuffer(blob, dtype=np.float64)
+        elif blob_len == 456 * 8:
+            # Legacy 456-d vector (float64)
+            encoding = np.frombuffer(blob, dtype=np.float64)
+        else:
+            try:
+                encoding = np.frombuffer(blob, dtype=np.float32)
+            except Exception:
+                encoding = np.frombuffer(blob, dtype=np.float64)
+
         results.append({
             "id": row["id"],
             "name": row["name"],

@@ -373,12 +373,19 @@ function handleRecognitionResponse(data) {
         // Biometric Success!
         playBiometricSound('success');
         hudReticle.classList.add('reticle-success');
-        statusText.textContent = `VERIFIED: ${data.name} (${data.roll_no})`;
+
+        if (data.marked_students && data.marked_students.length > 1) {
+            statusText.textContent = `VERIFIED ${data.marked_students.length} STUDENTS PRESENT`;
+            showBiometricToast(data.message, 'success');
+            data.marked_students.forEach(s => addStudentToLiveFeed(s));
+        } else {
+            statusText.textContent = `VERIFIED: ${data.name} (${data.roll_no})`;
+            showBiometricToast(`Attendance marked for ${data.name} (${data.roll_no})`, 'success');
+            addStudentToLiveFeed(data);
+        }
         statusText.classList.add('text-success');
 
         showMatchedStudent(data);
-        showBiometricToast(`Attendance marked for ${data.name} (${data.roll_no})`, 'success');
-        addStudentToLiveFeed(data);
         updateTodayStats(data.today_present);
 
         // Auto-reset after 3.5 seconds
@@ -391,7 +398,7 @@ function handleRecognitionResponse(data) {
         statusText.classList.add('text-warning');
 
         showAlreadyMarkedStudent(data);
-        showBiometricToast(`${data.name} is already marked present today. Multiple check-ins are restricted.`, 'warning');
+        showBiometricToast(data.message || `${data.name} is already marked present today. Multiple check-ins are restricted.`, 'warning');
 
         // Auto-reset after 4.0 seconds
         startAlreadyResetCountdown(4.0);
@@ -417,13 +424,21 @@ function showMatchedStudent(data) {
     const matchCard = document.getElementById('matchedStudentCard');
     matchCard.style.display = 'block';
 
+    const multiBadge = (data.marked_students && data.marked_students.length > 1)
+        ? `● ${data.marked_students.length} STUDENTS VERIFIED PRESENT`
+        : `● ATTENDANCE VERIFIED PRESENT`;
+    const titleEl = matchCard.querySelector('.badge.bg-success-subtle');
+    if (titleEl) titleEl.textContent = multiBadge;
+
     document.getElementById('matchedName').textContent = data.name;
     document.getElementById('matchedRoll').textContent = data.roll_no;
     document.getElementById('matchedClass').textContent = data.class_name || "Enrolled";
     document.getElementById('matchedTime').textContent = data.time || new Date().toLocaleTimeString();
-    document.getElementById('matchedConfidence').textContent = `${((data.confidence || 0.95) * 100).toFixed(1)}%`;
+    
+    const confVal = (data.confidence > 1.0) ? data.confidence : ((data.confidence || 0.95) * 100);
+    document.getElementById('matchedConfidence').textContent = `${confVal.toFixed(1)}%`;
     document.getElementById('verificationBadge').className = "badge bg-success-subtle text-success border border-success-subtle";
-    document.getElementById('verificationBadge').textContent = "Verified Present";
+    document.getElementById('verificationBadge').textContent = (data.marked_students && data.marked_students.length > 1) ? `${data.marked_students.length} Verified` : "Verified Present";
 }
 
 // 3.1 Display Already Marked Student Card (Restricting Multiple Attendance)
@@ -499,24 +514,6 @@ function startResetCountdown(seconds) {
 function startAlreadyResetCountdown(seconds) {
     const bar = document.getElementById('alreadyProgressBar');
     const secLabel = document.getElementById('alreadySeconds');
-    let remaining = seconds;
-    bar.style.width = '100%';
-    secLabel.textContent = Math.ceil(remaining);
-
-    const stepMs = 100;
-    const interval = setInterval(() => {
-        remaining -= (stepMs / 1000);
-        const pct = Math.max(0, (remaining / seconds) * 100);
-        bar.style.width = pct + '%';
-        secLabel.textContent = Math.max(1, Math.ceil(remaining));
-
-        if (remaining <= 0) {
-            clearInterval(interval);
-            resetToIdle();
-        }
-    }, stepMs);
-}
-    const secLabel = document.getElementById('resetSeconds');
     let remaining = seconds;
     bar.style.width = '100%';
     secLabel.textContent = Math.ceil(remaining);
