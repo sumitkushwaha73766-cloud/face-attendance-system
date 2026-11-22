@@ -177,6 +177,34 @@
                         <small class="text-muted mt-1 d-block" style="font-size: 0.75rem;">Next student ready in <span id="resetSeconds">3</span>s...</small>
                     </div>
 
+                    <!-- Already Marked Warning Card (Prevents Multiple Check-ins) -->
+                    <div id="alreadyMarkedCard" style="display:none;" class="verification-already-card p-3 rounded-4">
+                        <div class="match-avatar-ring ring-warning mx-auto mb-3">
+                            <i class="bi bi-shield-exclamation text-warning display-5"></i>
+                        </div>
+                        <div class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-1 mb-2 font-mono">
+                            ● ALREADY MARKED TODAY (RESTRICTED)
+                        </div>
+                        <h3 class="fw-bold text-white mb-1" id="alreadyName">Student Name</h3>
+                        <div class="d-flex justify-content-center gap-2 mb-3">
+                            <span class="badge bg-dark border border-secondary text-warning px-2 py-1 font-mono fs-6" id="alreadyRoll">Roll No</span>
+                            <span class="badge bg-dark border border-secondary text-muted px-2 py-1 font-mono fs-6" id="alreadyClass">Class</span>
+                        </div>
+                        <div class="p-2 rounded bg-black-subtle border border-warning-subtle mb-3 text-start small">
+                            <div class="d-flex justify-content-between text-muted">
+                                <span>Initial Check-in Time:</span>
+                                <strong class="text-warning font-mono" id="alreadyTime">--:--:--</strong>
+                            </div>
+                            <div class="text-warning small mt-2">
+                                <i class="bi bi-info-circle me-1"></i> Multiple attendance on the same day is restricted by policy.
+                            </div>
+                        </div>
+                        <div class="progress reset-progress" style="height: 4px;">
+                            <div id="alreadyProgressBar" class="progress-bar bg-warning" style="width: 100%;"></div>
+                        </div>
+                        <small class="text-muted mt-1 d-block" style="font-size: 0.75rem;">Terminal ready in <span id="alreadySeconds">4</span>s...</small>
+                    </div>
+
                     <!-- Unknown / Error Card -->
                     <div id="unknownStudentCard" style="display:none;" class="verification-error-card p-3 rounded-4">
                         <div class="match-avatar-ring ring-danger mx-auto mb-3">
@@ -355,6 +383,18 @@ function handleRecognitionResponse(data) {
 
         // Auto-reset after 3.5 seconds
         startResetCountdown(3.5);
+    } else if (data.status === 'already_marked') {
+        // Restricted Multiple Attendance on Same Day
+        playBiometricSound('alert');
+        hudReticle.classList.add('reticle-scanning');
+        statusText.textContent = `ALREADY MARKED TODAY: ${data.name}`;
+        statusText.classList.add('text-warning');
+
+        showAlreadyMarkedStudent(data);
+        showBiometricToast(`${data.name} is already marked present today. Multiple check-ins are restricted.`, 'warning');
+
+        // Auto-reset after 4.0 seconds
+        startAlreadyResetCountdown(4.0);
     } else if (data.status === 'unknown') {
         playBiometricSound('alert');
         hudReticle.classList.add('reticle-danger');
@@ -372,6 +412,7 @@ function handleRecognitionResponse(data) {
 // 3. Display Matched Student Card
 function showMatchedStudent(data) {
     document.getElementById('idleState').style.display = 'none';
+    document.getElementById('alreadyMarkedCard').style.display = 'none';
     document.getElementById('unknownStudentCard').style.display = 'none';
     const matchCard = document.getElementById('matchedStudentCard');
     matchCard.style.display = 'block';
@@ -385,10 +426,27 @@ function showMatchedStudent(data) {
     document.getElementById('verificationBadge').textContent = "Verified Present";
 }
 
+// 3.1 Display Already Marked Student Card (Restricting Multiple Attendance)
+function showAlreadyMarkedStudent(data) {
+    document.getElementById('idleState').style.display = 'none';
+    document.getElementById('matchedStudentCard').style.display = 'none';
+    document.getElementById('unknownStudentCard').style.display = 'none';
+    const alreadyCard = document.getElementById('alreadyMarkedCard');
+    alreadyCard.style.display = 'block';
+
+    document.getElementById('alreadyName').textContent = data.name;
+    document.getElementById('alreadyRoll').textContent = data.roll_no;
+    document.getElementById('alreadyClass').textContent = data.class_name || "Enrolled";
+    document.getElementById('alreadyTime').textContent = data.time || "--:--:--";
+    document.getElementById('verificationBadge').className = "badge bg-warning-subtle text-warning border border-warning-subtle";
+    document.getElementById('verificationBadge').textContent = "Already Marked";
+}
+
 // 4. Display Unknown Result
 function showUnknownResult(msg) {
     document.getElementById('idleState').style.display = 'none';
     document.getElementById('matchedStudentCard').style.display = 'none';
+    document.getElementById('alreadyMarkedCard').style.display = 'none';
     const errCard = document.getElementById('unknownStudentCard');
     errCard.style.display = 'block';
     document.getElementById('unknownMessage').textContent = msg;
@@ -401,6 +459,7 @@ function showUnknownResult(msg) {
 function resetToIdle() {
     document.getElementById('idleState').style.display = 'block';
     document.getElementById('matchedStudentCard').style.display = 'none';
+    document.getElementById('alreadyMarkedCard').style.display = 'none';
     document.getElementById('unknownStudentCard').style.display = 'none';
     document.getElementById('verificationBadge').className = "badge bg-secondary-subtle text-muted";
     document.getElementById('verificationBadge').textContent = "Awaiting Scan";
@@ -418,6 +477,45 @@ function resetReticleStyles() {
 // 6. Reset Countdown Animation
 function startResetCountdown(seconds) {
     const bar = document.getElementById('resetProgressBar');
+    const secLabel = document.getElementById('resetSeconds');
+    let remaining = seconds;
+    bar.style.width = '100%';
+    secLabel.textContent = Math.ceil(remaining);
+
+    const stepMs = 100;
+    const interval = setInterval(() => {
+        remaining -= (stepMs / 1000);
+        const pct = Math.max(0, (remaining / seconds) * 100);
+        bar.style.width = pct + '%';
+        secLabel.textContent = Math.max(1, Math.ceil(remaining));
+
+        if (remaining <= 0) {
+            clearInterval(interval);
+            resetToIdle();
+        }
+    }, stepMs);
+}
+
+function startAlreadyResetCountdown(seconds) {
+    const bar = document.getElementById('alreadyProgressBar');
+    const secLabel = document.getElementById('alreadySeconds');
+    let remaining = seconds;
+    bar.style.width = '100%';
+    secLabel.textContent = Math.ceil(remaining);
+
+    const stepMs = 100;
+    const interval = setInterval(() => {
+        remaining -= (stepMs / 1000);
+        const pct = Math.max(0, (remaining / seconds) * 100);
+        bar.style.width = pct + '%';
+        secLabel.textContent = Math.max(1, Math.ceil(remaining));
+
+        if (remaining <= 0) {
+            clearInterval(interval);
+            resetToIdle();
+        }
+    }, stepMs);
+}
     const secLabel = document.getElementById('resetSeconds');
     let remaining = seconds;
     bar.style.width = '100%';

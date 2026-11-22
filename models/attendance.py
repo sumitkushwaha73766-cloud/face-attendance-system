@@ -4,6 +4,22 @@ from datetime import date, datetime, timedelta
 from models import get_db
 
 
+def check_already_marked_today(student_id):
+    """
+    Check if a student is already marked present today.
+    Returns (already_marked: bool, record: dict or None).
+    """
+    today = date.today().isoformat()
+    with get_db() as db:
+        row = db.execute(
+            "SELECT * FROM attendance WHERE student_id = ? AND date = ?",
+            (student_id, today)
+        ).fetchone()
+        if row:
+            return True, dict(row)
+        return False, None
+
+
 def mark_attendance(student_id):
     """
     Mark attendance for a student today.

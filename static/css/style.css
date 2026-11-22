@@ -950,3 +950,18 @@ h1, h2, h3, h4, h5, h6, .text-dark {
 .shadow-2xl {
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7) !important;
 }
+
+
+/* Already Marked Card & Warning Ring */
+.verification-already-card {
+    background: rgba(245, 158, 11, 0.08);
+    border: 2px solid rgba(245, 158, 11, 0.5);
+    box-shadow: 0 0 35px rgba(245, 158, 11, 0.25);
+    animation: matchCardIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.ring-warning {
+    background: rgba(245, 158, 11, 0.15);
+    border: 2px solid var(--neon-amber) !important;
+    box-shadow: 0 0 25px rgba(245, 158, 11, 0.4) !important;
+}

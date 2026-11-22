@@ -30,7 +30,7 @@ from models.student import (
     delete_student, get_all_face_encodings, validate_student_input,
 )
 from models.attendance import (
-    mark_attendance, get_attendance_by_date, get_today_summary,
+    mark_attendance, check_already_marked_today, get_attendance_by_date, get_today_summary,
     get_attendance_report, get_student_attendance_percentage,
     get_weekly_trend,
 )
@@ -376,11 +376,28 @@ def api_recognize():
     match = recognize_face(encoding, known_faces)
 
     if match:
-        newly_marked = mark_attendance(match["id"])
-        now_time = datetime.now().strftime("%I:%M:%S %p")
+        already_marked, record = check_already_marked_today(match["id"])
         student = get_student_by_id(match["id"])
         class_str = f"{student['class_name']} - {student['section']}" if student else "Registered"
         photo_path = student["photo_path"] if student and "photo_path" in student.keys() else ""
+        summary = get_today_summary()
+
+        if already_marked:
+            recorded_time = record["time"]
+            return jsonify({
+                "status": "already_marked",
+                "name": match["name"],
+                "roll_no": match["roll_no"],
+                "class_name": class_str,
+                "time": recorded_time,
+                "photo_path": photo_path,
+                "confidence": match["confidence"],
+                "today_present": summary.get("present", 0),
+                "message": f"{match['name']} is already marked present today (at {recorded_time}). Multiple check-ins are restricted.",
+            })
+
+        newly_marked = mark_attendance(match["id"])
+        now_time = datetime.now().strftime("%I:%M:%S %p")
         summary = get_today_summary()
 
         return jsonify({
@@ -391,9 +408,9 @@ def api_recognize():
             "time": now_time,
             "photo_path": photo_path,
             "confidence": match["confidence"],
-            "newly_marked": newly_marked,
+            "newly_marked": True,
             "today_present": summary.get("present", 0),
-            "message": f"{'Attendance marked for' if newly_marked else 'Already marked today for'} {match['name']}",
+            "message": f"Attendance marked for {match['name']} at {now_time}.",
         })
     else:
         return jsonify({"status": "unknown", "message": "Face not recognized. Student may not be registered yet."})
@@ -429,11 +446,28 @@ def api_recognize_photo():
     match = recognize_face(encoding, known_faces)
 
     if match:
-        newly_marked = mark_attendance(match["id"])
-        now_time = datetime.now().strftime("%I:%M:%S %p")
+        already_marked, record = check_already_marked_today(match["id"])
         student = get_student_by_id(match["id"])
         class_str = f"{student['class_name']} - {student['section']}" if student else "Registered"
         photo_path = student["photo_path"] if student and "photo_path" in student.keys() else ""
+        summary = get_today_summary()
+
+        if already_marked:
+            recorded_time = record["time"]
+            return jsonify({
+                "status": "already_marked",
+                "name": match["name"],
+                "roll_no": match["roll_no"],
+                "class_name": class_str,
+                "time": recorded_time,
+                "photo_path": photo_path,
+                "confidence": match["confidence"],
+                "today_present": summary.get("present", 0),
+                "message": f"{match['name']} is already marked present today (at {recorded_time}). Multiple check-ins are restricted.",
+            })
+
+        newly_marked = mark_attendance(match["id"])
+        now_time = datetime.now().strftime("%I:%M:%S %p")
         summary = get_today_summary()
 
         return jsonify({
@@ -444,9 +478,9 @@ def api_recognize_photo():
             "time": now_time,
             "photo_path": photo_path,
             "confidence": match["confidence"],
-            "newly_marked": newly_marked,
+            "newly_marked": True,
             "today_present": summary.get("present", 0),
-            "message": f"{'Attendance marked for' if newly_marked else 'Already marked today for'} {match['name']}",
+            "message": f"Attendance marked for {match['name']} at {now_time}.",
         })
     else:
         return jsonify({"status": "unknown", "message": "Face not recognized. Student may not be registered yet."})
