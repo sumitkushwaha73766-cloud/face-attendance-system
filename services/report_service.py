@@ -7,6 +7,7 @@ import tempfile
 from datetime import datetime
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 from fpdf import FPDF
 
 
@@ -72,12 +73,14 @@ def generate_excel_report(attendance_data, filename=None):
             cell.alignment = Alignment(horizontal="center")
 
     # Auto-fit column widths
-    for col in ws.columns:
+    for col_idx, col in enumerate(ws.columns, 1):
         max_length = 0
         for cell in col:
-            if cell.value:
+            # Skip title rows (row 1 & 2) for length calculation
+            if cell.row > 3 and cell.value:
                 max_length = max(max_length, len(str(cell.value)))
-        ws.column_dimensions[col[0].column_letter].width = max_length + 4
+        col_letter = get_column_letter(col_idx)
+        ws.column_dimensions[col_letter].width = max(max_length + 4, 12)
 
     # Summary row
     summary_row = len(attendance_data) + 6
