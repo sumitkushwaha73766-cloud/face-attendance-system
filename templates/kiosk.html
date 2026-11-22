@@ -1,0 +1,614 @@
+{% extends "base.html" %}
+{% block title %}Smart Biometric Attendance Terminal{% endblock %}
+
+{% block content_full %}
+<div class="kiosk-container container-fluid py-4 px-3 px-lg-5">
+    <!-- Hero / Header Title Section -->
+    <div class="row mb-4 text-center">
+        <div class="col-12">
+            <div class="kiosk-hero-badge mb-2 d-inline-block">
+                <i class="bi bi-cpu-fill text-cyan me-1"></i>
+                <span class="fw-semibold">AI FACIAL RECOGNITION ATTENDANCE TERMINAL</span>
+            </div>
+            <h1 class="kiosk-main-title fw-extrabold mb-1">
+                Step Up & <span class="text-gradient-cyan">Mark in 1-Click</span>
+            </h1>
+            <p class="text-muted small mb-0">
+                Face is already stored in the biometric database. Look into the camera and click once to verify.
+            </p>
+        </div>
+    </div>
+
+    <!-- Main Kiosk Grid -->
+    <div class="row g-4 justify-content-center align-items-start">
+        <!-- ─── LEFT: Live Biometric Camera Terminal ─────────────── -->
+        <div class="col-lg-7 col-xl-6">
+            <div class="card kiosk-card shadow-2xl border-0 overflow-hidden">
+                <div class="card-header kiosk-card-header d-flex justify-content-between align-items-center py-3 px-4">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="pulse-dot-green"></span>
+                        <span class="fw-bold text-white small tracking-wide">LIVE VIEWFINDER</span>
+                        <span class="badge bg-primary-subtle text-cyan border border-primary-subtle font-mono small">OPENCV DSHOW</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <button class="btn btn-sm btn-outline-secondary py-0 px-2" id="kioskCamSwitchBtn" onclick="toggleCameraSource()" title="Switch to Browser Webcam">
+                            <i class="bi bi-arrow-repeat me-1"></i> Switch Source
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card-body p-4 text-center">
+                    <!-- Physical Shutter Detection Warning Banner -->
+                    <div id="shutterWarningBanner" class="alert alert-warning text-start mb-3" style="display:none;">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <i class="bi bi-exclamation-triangle-fill fs-5 text-warning"></i>
+                            <strong class="text-dark">Physical Camera Shutter Closed:</strong>
+                        </div>
+                        <p class="small text-muted mb-2">
+                            The camera frame is completely black. Please slide open the physical privacy slider above your screen, or use the instant photo upload option below.
+                        </p>
+                        <button class="btn btn-dark btn-sm px-3" onclick="openPhotoModal()">
+                            <i class="bi bi-upload me-1"></i> Upload Photo Instead
+                        </button>
+                    </div>
+
+                    <!-- Camera Viewport with HUD Brackets & Reticle -->
+                    <div class="camera-hud-frame position-relative mx-auto mb-3" id="kioskCameraFrame">
+                        <!-- Corner HUD Brackets -->
+                        <div class="hud-bracket bracket-tl"></div>
+                        <div class="hud-bracket bracket-tr"></div>
+                        <div class="hud-bracket bracket-bl"></div>
+                        <div class="hud-bracket bracket-br"></div>
+
+                        <!-- Top Readout Bar -->
+                        <div class="hud-bar-top">
+                            <span><span class="pulse-dot"></span> AI BIOMETRIC FEED</span>
+                            <span id="fpsReadout">30 FPS • LBPH ACTIVE</span>
+                        </div>
+
+                        <!-- Moving Laser Sweep Line -->
+                        <div class="hud-laser" id="hudLaser"></div>
+
+                        <!-- Biometric Target Reticle -->
+                        <div class="hud-reticle" id="hudReticle">
+                            <div class="hud-reticle-ring"></div>
+                            <div class="hud-reticle-crosshair"></div>
+                        </div>
+
+                        <!-- Live OpenCV Video Feed Stream -->
+                        <img id="kioskVideoFeed" src="{{ url_for('video_feed') }}" 
+                             alt="Biometric Camera Feed" 
+                             class="kiosk-feed-img rounded-3"
+                             onerror="handleCameraFeedError()">
+
+                        <!-- HTML5 Browser WebRTC Video (Fallback) -->
+                        <video id="kioskBrowserVideo" autoplay playsinline muted 
+                               class="kiosk-feed-img rounded-3" 
+                               style="display:none;"></video>
+                        <canvas id="kioskSnapshotCanvas" width="640" height="480" style="display:none;"></canvas>
+
+                        <!-- Bottom Readout Bar -->
+                        <div class="hud-bar-bottom">
+                            <span id="kioskStatusText">READY • ALIGN FACE IN RETICLE</span>
+                            <span class="font-mono">DB: CONNECTED</span>
+                        </div>
+                    </div>
+
+                    <!-- ─── THE 1-CLICK ACTION BUTTON ───────────────────────── -->
+                    <div class="d-grid gap-2 mb-3">
+                        <button id="kioskOneClickBtn" class="btn btn-kiosk-action py-3 position-relative overflow-hidden" onclick="triggerOneClickScan()">
+                            <span class="btn-glow-pulse"></span>
+                            <div class="d-flex align-items-center justify-content-center gap-2 position-relative" style="z-index: 2;">
+                                <i class="bi bi-lightning-charge-fill fs-3 text-warning"></i>
+                                <div class="text-start">
+                                    <div class="fs-5 fw-extrabold text-white tracking-wide">1-CLICK MARK ATTENDANCE</div>
+                                    <small class="text-cyan d-block opacity-90" style="font-size: 0.78rem;">Instantly verify face against database roster</small>
+                                </div>
+                            </div>
+                        </button>
+                    </div>
+
+                    <!-- Secondary Options: Auto-Scan Switch & Photo Upload -->
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 px-2 pt-2 border-top border-secondary-subtle">
+                        <div class="form-check form-switch text-start">
+                            <input class="form-check-input" type="checkbox" id="autoScanToggle" onchange="toggleAutoScanMode(this.checked)">
+                            <label class="form-check-label small text-muted fw-semibold" for="autoScanToggle">
+                                <i class="bi bi-magic text-cyan me-1"></i> Auto-Detect Mode (Hands-Free)
+                            </label>
+                        </div>
+                        <div>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="openPhotoModal()">
+                                <i class="bi bi-image me-1"></i> Upload Photo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ─── RIGHT: Real-Time Verified Card & Today's Attendance Feed ─ -->
+        <div class="col-lg-5 col-xl-4">
+            <!-- 1. Real-Time Result Card -->
+            <div class="card kiosk-card shadow-xl border-0 mb-4" id="resultCardContainer">
+                <div class="card-header kiosk-card-header py-3 px-4 d-flex justify-content-between align-items-center">
+                    <span class="fw-bold small text-white tracking-wide"><i class="bi bi-shield-check text-cyan me-2"></i>BIOMETRIC VERIFICATION</span>
+                    <span id="verificationBadge" class="badge bg-secondary-subtle text-muted">Awaiting Scan</span>
+                </div>
+                
+                <div class="card-body p-4 text-center" id="verificationBody">
+                    <!-- Idle Placeholder -->
+                    <div id="idleState" class="py-4">
+                        <div class="idle-reticle-icon mb-3">
+                            <i class="bi bi-person-bounding-box text-cyan opacity-40 display-4"></i>
+                        </div>
+                        <h6 class="fw-bold text-white mb-1">Awaiting Biometric Scan</h6>
+                        <p class="text-muted small mb-0">
+                            Position yourself inside the viewfinder and click the <strong>1-Click Mark</strong> button.
+                        </p>
+                    </div>
+
+                    <!-- Live Matched Student Card (Revealed on Recognition) -->
+                    <div id="matchedStudentCard" style="display:none;" class="verification-match-card p-3 rounded-4">
+                        <div class="match-avatar-ring mx-auto mb-3">
+                            <i class="bi bi-check-circle-fill text-success display-5"></i>
+                        </div>
+                        <div class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1 mb-2 font-mono">
+                            ● ATTENDANCE VERIFIED PRESENT
+                        </div>
+                        <h3 class="fw-bold text-white mb-1" id="matchedName">Student Name</h3>
+                        <div class="d-flex justify-content-center gap-2 mb-3">
+                            <span class="badge bg-dark border border-secondary text-cyan px-2 py-1 font-mono fs-6" id="matchedRoll">Roll No</span>
+                            <span class="badge bg-dark border border-secondary text-muted px-2 py-1 font-mono fs-6" id="matchedClass">Class</span>
+                        </div>
+                        <div class="p-2 rounded bg-black-subtle border border-secondary-subtle mb-3 text-start small">
+                            <div class="d-flex justify-content-between text-muted">
+                                <span>Timestamp:</span>
+                                <strong class="text-white font-mono" id="matchedTime">--:--:--</strong>
+                            </div>
+                            <div class="d-flex justify-content-between text-muted mt-1">
+                                <span>Confidence Score:</span>
+                                <strong class="text-success font-mono" id="matchedConfidence">98.4%</strong>
+                            </div>
+                        </div>
+                        <!-- 3-Second Reset Countdown Progress Bar -->
+                        <div class="progress reset-progress" style="height: 4px;">
+                            <div id="resetProgressBar" class="progress-bar bg-success" style="width: 100%;"></div>
+                        </div>
+                        <small class="text-muted mt-1 d-block" style="font-size: 0.75rem;">Next student ready in <span id="resetSeconds">3</span>s...</small>
+                    </div>
+
+                    <!-- Unknown / Error Card -->
+                    <div id="unknownStudentCard" style="display:none;" class="verification-error-card p-3 rounded-4">
+                        <div class="match-avatar-ring ring-danger mx-auto mb-3">
+                            <i class="bi bi-x-circle-fill text-danger display-5"></i>
+                        </div>
+                        <h5 class="fw-bold text-white mb-1">Face Not Recognized</h5>
+                        <p class="text-muted small mb-3" id="unknownMessage">
+                            Student is either not registered in the database, or lighting is too dark.
+                        </p>
+                        <button class="btn btn-outline-cyan btn-sm" onclick="resetToIdle()">
+                            <i class="bi bi-arrow-clockwise me-1"></i> Try Again
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Today's Attendance Live Summary & Roster Feed -->
+            <div class="card kiosk-card shadow-xl border-0">
+                <div class="card-header kiosk-card-header py-3 px-4 d-flex justify-content-between align-items-center">
+                    <span class="fw-bold small text-white tracking-wide"><i class="bi bi-clock-history text-cyan me-2"></i>TODAY'S VERIFIED FEED</span>
+                    <span class="badge bg-success text-white font-mono" id="todayPresentCount">{{ summary.present }} Present</span>
+                </div>
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-center p-2 mb-3 rounded bg-black-subtle border border-secondary-subtle">
+                        <div class="text-center flex-fill border-end border-secondary-subtle">
+                            <small class="text-muted d-block" style="font-size: 0.72rem;">REGISTERED</small>
+                            <span class="fw-bold text-white font-mono">{{ total_students }}</span>
+                        </div>
+                        <div class="text-center flex-fill border-end border-secondary-subtle">
+                            <small class="text-muted d-block" style="font-size: 0.72rem;">PRESENT</small>
+                            <span class="fw-bold text-success font-mono" id="statPresentCount">{{ summary.present }}</span>
+                        </div>
+                        <div class="text-center flex-fill">
+                            <small class="text-muted d-block" style="font-size: 0.72rem;">RATIO</small>
+                            <span class="fw-bold text-cyan font-mono" id="statRatio">{{ summary.percentage }}%</span>
+                        </div>
+                    </div>
+
+                    <!-- Scrollable Live Feed List -->
+                    <div class="kiosk-recent-feed" id="kioskRecentFeed" style="max-height: 260px; overflow-y: auto;">
+                        {% if today_records %}
+                            {% for rec in today_records %}
+                            <div class="feed-item p-2 mb-2 rounded d-flex justify-content-between align-items-center">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="feed-avatar-pill">
+                                        <i class="bi bi-person-check-fill text-success"></i>
+                                    </div>
+                                    <div>
+                                        <span class="d-block text-white fw-semibold small">{{ rec.name }}</span>
+                                        <small class="text-muted font-mono" style="font-size: 0.72rem;">{{ rec.roll_no }} • {{ rec.class_name }}</small>
+                                    </div>
+                                </div>
+                                <span class="badge bg-dark text-cyan font-mono small">{{ rec.time }}</span>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center py-4 text-muted small" id="feedEmptyNotice">
+                                <i class="bi bi-inbox fs-3 d-block mb-1 opacity-50"></i>
+                                No attendance logged yet today.<br>Be the first to step up!
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Quick Photo Attendance Upload -->
+<div class="modal fade" id="photoUploadModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content kiosk-card border border-secondary-subtle">
+            <div class="modal-header border-bottom border-secondary-subtle">
+                <h5 class="modal-title text-white fw-bold"><i class="bi bi-image me-2 text-cyan"></i>Photo Attendance Upload</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="text-muted small mb-3">
+                    Upload a student photo or selfie to recognize face and mark attendance immediately in the database.
+                </p>
+                <div class="mb-3">
+                    <input type="file" id="modalPhotoInput" class="form-control" accept=".jpg,.jpeg,.png" onchange="previewModalPhoto(event)">
+                </div>
+                <div id="modalPhotoPreviewBox" class="text-center mb-3" style="display:none;">
+                    <img id="modalPhotoPreview" src="" class="rounded border border-secondary-subtle shadow-sm" style="max-height: 200px; max-width: 100%;">
+                </div>
+                <button type="button" class="btn btn-primary w-100 py-2 fw-bold" onclick="submitModalPhotoAttendance()">
+                    <i class="bi bi-upc-scan me-2"></i> Scan Uploaded Photo & Mark
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ─── Kiosk Biometric Attendance Controller ────────────────────────
+let autoScanInterval = null;
+let isScanning = false;
+let browserCamActive = false;
+let browserStream = null;
+
+document.addEventListener('DOMContentLoaded', function () {
+    // Check initial feed
+    checkFeedShutter();
+});
+
+// 1. One-Click Attendance Trigger
+function triggerOneClickScan() {
+    if (isScanning) return;
+    isScanning = true;
+
+    const btn = document.getElementById('kioskOneClickBtn');
+    const statusText = document.getElementById('kioskStatusText');
+    const hudReticle = document.getElementById('hudReticle');
+    const hudLaser = document.getElementById('hudLaser');
+
+    // UI Feedback: Scanning Active
+    btn.disabled = true;
+    btn.classList.add('scanning-active');
+    statusText.textContent = "SCANNING FACE... MATCHING WITH DATABASE...";
+    statusText.classList.add('text-warning');
+    hudReticle.classList.add('reticle-scanning');
+    playBiometricSound('scan');
+
+    // If browser webcam is active, capture snapshot from video element
+    if (browserCamActive) {
+        captureAndSubmitBrowserCam();
+        return;
+    }
+
+    // Call /api/recognize with CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+    fetch('/api/recognize', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        handleRecognitionResponse(data);
+    })
+    .catch(err => {
+        console.error("Recognition Error:", err);
+        showUnknownResult("Network error or server unavailable. Please try again.");
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.classList.remove('scanning-active');
+        statusText.classList.remove('text-warning');
+        hudReticle.classList.remove('reticle-scanning');
+        isScanning = false;
+    });
+}
+
+// 2. Handle Response
+function handleRecognitionResponse(data) {
+    const statusText = document.getElementById('kioskStatusText');
+    const hudReticle = document.getElementById('hudReticle');
+
+    if (data.status === 'success') {
+        // Biometric Success!
+        playBiometricSound('success');
+        hudReticle.classList.add('reticle-success');
+        statusText.textContent = `VERIFIED: ${data.name} (${data.roll_no})`;
+        statusText.classList.add('text-success');
+
+        showMatchedStudent(data);
+        showBiometricToast(`Attendance marked for ${data.name} (${data.roll_no})`, 'success');
+        addStudentToLiveFeed(data);
+        updateTodayStats(data.today_present);
+
+        // Auto-reset after 3.5 seconds
+        startResetCountdown(3.5);
+    } else if (data.status === 'unknown') {
+        playBiometricSound('alert');
+        hudReticle.classList.add('reticle-danger');
+        statusText.textContent = "FACE NOT RECOGNIZED IN ROSTER";
+        showUnknownResult(data.message || "Face not recognized. Student may not be registered yet.");
+        setTimeout(resetReticleStyles, 3000);
+    } else {
+        playBiometricSound('alert');
+        statusText.textContent = "CAMERA ERROR / NO FACE IN FRAME";
+        showUnknownResult(data.message || "No face detected in camera viewfinder.");
+        setTimeout(resetReticleStyles, 3000);
+    }
+}
+
+// 3. Display Matched Student Card
+function showMatchedStudent(data) {
+    document.getElementById('idleState').style.display = 'none';
+    document.getElementById('unknownStudentCard').style.display = 'none';
+    const matchCard = document.getElementById('matchedStudentCard');
+    matchCard.style.display = 'block';
+
+    document.getElementById('matchedName').textContent = data.name;
+    document.getElementById('matchedRoll').textContent = data.roll_no;
+    document.getElementById('matchedClass').textContent = data.class_name || "Enrolled";
+    document.getElementById('matchedTime').textContent = data.time || new Date().toLocaleTimeString();
+    document.getElementById('matchedConfidence').textContent = `${((data.confidence || 0.95) * 100).toFixed(1)}%`;
+    document.getElementById('verificationBadge').className = "badge bg-success-subtle text-success border border-success-subtle";
+    document.getElementById('verificationBadge').textContent = "Verified Present";
+}
+
+// 4. Display Unknown Result
+function showUnknownResult(msg) {
+    document.getElementById('idleState').style.display = 'none';
+    document.getElementById('matchedStudentCard').style.display = 'none';
+    const errCard = document.getElementById('unknownStudentCard');
+    errCard.style.display = 'block';
+    document.getElementById('unknownMessage').textContent = msg;
+
+    document.getElementById('verificationBadge').className = "badge bg-danger-subtle text-danger border border-danger-subtle";
+    document.getElementById('verificationBadge').textContent = "Not Recognized";
+}
+
+// 5. Reset to Idle View
+function resetToIdle() {
+    document.getElementById('idleState').style.display = 'block';
+    document.getElementById('matchedStudentCard').style.display = 'none';
+    document.getElementById('unknownStudentCard').style.display = 'none';
+    document.getElementById('verificationBadge').className = "badge bg-secondary-subtle text-muted";
+    document.getElementById('verificationBadge').textContent = "Awaiting Scan";
+    resetReticleStyles();
+}
+
+function resetReticleStyles() {
+    const hudReticle = document.getElementById('hudReticle');
+    const statusText = document.getElementById('kioskStatusText');
+    hudReticle.classList.remove('reticle-success', 'reticle-danger', 'reticle-scanning');
+    statusText.className = "small font-mono";
+    statusText.textContent = "READY • ALIGN FACE IN RETICLE";
+}
+
+// 6. Reset Countdown Animation
+function startResetCountdown(seconds) {
+    const bar = document.getElementById('resetProgressBar');
+    const secLabel = document.getElementById('resetSeconds');
+    let remaining = seconds;
+    bar.style.width = '100%';
+    secLabel.textContent = Math.ceil(remaining);
+
+    const stepMs = 100;
+    const interval = setInterval(() => {
+        remaining -= (stepMs / 1000);
+        const pct = Math.max(0, (remaining / seconds) * 100);
+        bar.style.width = pct + '%';
+        secLabel.textContent = Math.max(1, Math.ceil(remaining));
+
+        if (remaining <= 0) {
+            clearInterval(interval);
+            resetToIdle();
+        }
+    }, stepMs);
+}
+
+// 7. Add Verified Student to Live Feed
+function addStudentToLiveFeed(data) {
+    const emptyNotice = document.getElementById('feedEmptyNotice');
+    if (emptyNotice) emptyNotice.remove();
+
+    const feed = document.getElementById('kioskRecentFeed');
+    const item = document.createElement('div');
+    item.className = 'feed-item p-2 mb-2 rounded d-flex justify-content-between align-items-center animate-slide-in';
+    item.innerHTML = `
+        <div class="d-flex align-items-center gap-2">
+            <div class="feed-avatar-pill">
+                <i class="bi bi-person-check-fill text-success"></i>
+            </div>
+            <div>
+                <span class="d-block text-white fw-semibold small">${data.name}</span>
+                <small class="text-muted font-mono" style="font-size: 0.72rem;">${data.roll_no} • ${data.class_name || 'Enrolled'}</small>
+            </div>
+        </div>
+        <span class="badge bg-dark text-cyan font-mono small">${data.time || new Date().toLocaleTimeString()}</span>
+    `;
+    feed.insertBefore(item, feed.firstChild);
+}
+
+function updateTodayStats(newCount) {
+    if (newCount !== undefined) {
+        const p1 = document.getElementById('todayPresentCount');
+        const p2 = document.getElementById('statPresentCount');
+        if (p1) p1.textContent = `${newCount} Present`;
+        if (p2) p2.textContent = newCount;
+    }
+}
+
+// 8. Auto-Scan Hands-Free Loop
+function toggleAutoScanMode(enable) {
+    if (enable) {
+        showBiometricToast("Auto-Scan Activated: Face detection running hands-free every 2s.", "info");
+        autoScanInterval = setInterval(() => {
+            if (!isScanning) {
+                triggerOneClickScan();
+            }
+        }, 2200);
+    } else {
+        if (autoScanInterval) {
+            clearInterval(autoScanInterval);
+            autoScanInterval = null;
+        }
+        showBiometricToast("Auto-Scan Deactivated. Use 1-Click button.", "info");
+    }
+}
+
+// 9. Camera Feed Error / Shutter Check
+function handleCameraFeedError() {
+    const banner = document.getElementById('shutterWarningBanner');
+    if (banner) banner.style.display = 'block';
+}
+
+function checkFeedShutter() {
+    const img = document.getElementById('kioskVideoFeed');
+    img.onload = function () {
+        // Feed is streaming
+    };
+}
+
+// 10. Switch to Browser Webcam (WebRTC)
+async function toggleCameraSource() {
+    const feedImg = document.getElementById('kioskVideoFeed');
+    const webVideo = document.getElementById('kioskBrowserVideo');
+    const btn = document.getElementById('kioskCamSwitchBtn');
+
+    if (!browserCamActive) {
+        try {
+            browserStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+            webVideo.srcObject = browserStream;
+            feedImg.style.display = 'none';
+            webVideo.style.display = 'block';
+            browserCamActive = true;
+            btn.innerHTML = '<i class="bi bi-camera-video me-1"></i> Switch to DirectShow';
+            showBiometricToast("Switched to Browser WebRTC Camera", "success");
+        } catch (e) {
+            console.error("WebRTC Error:", e);
+            showBiometricToast("Could not access browser webcam: " + e.message, "danger");
+        }
+    } else {
+        if (browserStream) {
+            browserStream.getTracks().forEach(t => t.stop());
+            browserStream = null;
+        }
+        webVideo.style.display = 'none';
+        feedImg.style.display = 'block';
+        feedImg.src = "{{ url_for('video_feed') }}?t=" + new Date().getTime();
+        browserCamActive = false;
+        btn.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i> Switch Source';
+        showBiometricToast("Switched to DirectShow Hardware Stream", "info");
+    }
+}
+
+function captureAndSubmitBrowserCam() {
+    const video = document.getElementById('kioskBrowserVideo');
+    const canvas = document.getElementById('kioskSnapshotCanvas');
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, 640, 480);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    const formData = new FormData();
+    formData.append('captured_photo', dataUrl);
+
+    fetch('/api/recognize_photo', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken },
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => handleRecognitionResponse(data))
+    .catch(err => {
+        console.error(err);
+        showUnknownResult("Failed to process browser snapshot.");
+    })
+    .finally(() => {
+        const btn = document.getElementById('kioskOneClickBtn');
+        btn.disabled = false;
+        btn.classList.remove('scanning-active');
+        isScanning = false;
+    });
+}
+
+// 11. Modal Photo Attendance Upload
+function openPhotoModal() {
+    const modal = new bootstrap.Modal(document.getElementById('photoUploadModal'));
+    modal.show();
+}
+
+function previewModalPhoto(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            document.getElementById('modalPhotoPreview').src = evt.target.result;
+            document.getElementById('modalPhotoPreviewBox').style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function submitModalPhotoAttendance() {
+    const fileInput = document.getElementById('modalPhotoInput');
+    if (!fileInput.files.length) {
+        showBiometricToast("Please choose a photo first.", "warning");
+        return;
+    }
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    const formData = new FormData();
+    formData.append('photo', fileInput.files[0]);
+
+    const modalEl = document.getElementById('photoUploadModal');
+    const modal = bootstrap.Modal.getInstance(modalEl);
+
+    fetch('/api/recognize_photo', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken },
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (modal) modal.hide();
+        handleRecognitionResponse(data);
+    })
+    .catch(err => {
+        console.error(err);
+        showBiometricToast("Upload recognition failed: " + err.message, "danger");
+    });
+}
+</script>
+{% endblock %}

@@ -107,7 +107,7 @@ def run_tests():
     record("08. Dashboard UI (Charts & HUD Stat Cards)", dash_ok, f"weeklyTrendChart={has_trend_chart}, ratioDonutChart={has_status_chart}, HUD Clock={has_hud_clock}")
 
     # 9. Attendance Live Camera HUD & Video Feed
-    r_att = session.get(f"{BASE_URL}/attendance", timeout=5)
+    r_att = session.get(f"{BASE_URL}/attendance", allow_redirects=True, timeout=5)
     att_html = r_att.text
     has_camera_hud = "camera-hud-frame" in att_html or "camera-hud-container" in att_html
     has_video_feed = "/video_feed" in att_html

@@ -118,15 +118,14 @@ class TestFaceAttendanceSystem(unittest.TestCase):
         """Test that unauthenticated requests to protected routes redirect to login."""
         tester = app.test_client(self)
 
-        # Protected dashboard route
+        # Protected admin routes (e.g., /dashboard, /register)
         resp = tester.get("/dashboard")
         self.assertEqual(resp.status_code, 302)
         self.assertIn("/login", resp.headers["Location"])
 
-        # Protected attendance route
-        resp = tester.get("/attendance")
-        self.assertEqual(resp.status_code, 302)
-        self.assertIn("/login", resp.headers["Location"])
+        resp_reg = tester.get("/register")
+        self.assertEqual(resp_reg.status_code, 302)
+        self.assertIn("/login", resp_reg.headers["Location"])
 
 
 if __name__ == "__main__":

@@ -149,16 +149,34 @@ def get_all_classes():
 
 # ─── Routes ──────────────────────────────────────────────────
 
-# --- Auth ---
+# --- Public Biometric Attendance Kiosk ---
 @app.route("/")
 def index():
-    if "admin_id" in session:
-        return redirect(url_for("dashboard"))
-    return redirect(url_for("login"))
+    """Public Biometric Attendance Kiosk for students - One-Click Attendance."""
+    classes = get_all_classes()
+    summary = get_today_summary()
+    today_records = get_attendance_by_date(date.today().isoformat())
+    students = get_all_students()
+    return render_template(
+        "kiosk.html",
+        classes=classes,
+        summary=summary,
+        today_records=today_records,
+        total_students=len(students),
+    )
+
+
+@app.route("/attendance")
+def attendance():
+    """Redirect to the main Kiosk or render Kiosk."""
+    return redirect(url_for("index"))
 
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    if "admin_id" in session:
+        return redirect(url_for("dashboard"))
+
     if request.method == "POST":
         ip = request.remote_addr
 
@@ -333,16 +351,8 @@ def register():
     return render_template("register.html", classes=classes)
 
 
-# --- Take Attendance ---
-@app.route("/attendance")
-@login_required
-def attendance():
-    classes = get_all_classes()
-    return render_template("attendance.html", classes=classes)
-
-
+# --- Biometric Streaming & One-Click Recognition (Public Kiosk) ---
 @app.route("/video_feed")
-@login_required
 def video_feed():
     """Video streaming route for MJPEG."""
     return Response(
@@ -352,12 +362,11 @@ def video_feed():
 
 
 @app.route("/api/recognize", methods=["POST"])
-@login_required
 def api_recognize():
-    """API endpoint: capture frame, recognize face, mark attendance."""
+    """API endpoint: capture frame, recognize face, mark attendance in 1 click."""
     success, frame = camera.get_frame()
     if not success:
-        return jsonify({"status": "error", "message": "Physical camera unavailable. Please use Photo Attendance."})
+        return jsonify({"status": "error", "message": "Physical camera unavailable. Please open camera shutter or use Photo Attendance."})
 
     encoding, face_location, error = encode_face_from_frame(frame)
     if error:
@@ -368,20 +377,29 @@ def api_recognize():
 
     if match:
         newly_marked = mark_attendance(match["id"])
+        now_time = datetime.now().strftime("%I:%M:%S %p")
+        student = get_student_by_id(match["id"])
+        class_str = f"{student['class_name']} - {student['section']}" if student else "Registered"
+        photo_path = student["photo_path"] if student and "photo_path" in student.keys() else ""
+        summary = get_today_summary()
+
         return jsonify({
             "status": "success",
             "name": match["name"],
             "roll_no": match["roll_no"],
+            "class_name": class_str,
+            "time": now_time,
+            "photo_path": photo_path,
             "confidence": match["confidence"],
             "newly_marked": newly_marked,
-            "message": f"{'Attendance marked for' if newly_marked else 'Already marked for'} {match['name']}",
+            "today_present": summary.get("present", 0),
+            "message": f"{'Attendance marked for' if newly_marked else 'Already marked today for'} {match['name']}",
         })
     else:
-        return jsonify({"status": "unknown", "message": "Face not recognized"})
+        return jsonify({"status": "unknown", "message": "Face not recognized. Student may not be registered yet."})
 
 
 @app.route("/api/recognize_photo", methods=["POST"])
-@login_required
 def api_recognize_photo():
     """API endpoint: recognize face from an uploaded photo or browser snapshot and mark attendance."""
     photo = request.files.get("photo")
@@ -412,20 +430,48 @@ def api_recognize_photo():
 
     if match:
         newly_marked = mark_attendance(match["id"])
+        now_time = datetime.now().strftime("%I:%M:%S %p")
+        student = get_student_by_id(match["id"])
+        class_str = f"{student['class_name']} - {student['section']}" if student else "Registered"
+        photo_path = student["photo_path"] if student and "photo_path" in student.keys() else ""
+        summary = get_today_summary()
+
         return jsonify({
             "status": "success",
             "name": match["name"],
             "roll_no": match["roll_no"],
+            "class_name": class_str,
+            "time": now_time,
+            "photo_path": photo_path,
             "confidence": match["confidence"],
             "newly_marked": newly_marked,
+            "today_present": summary.get("present", 0),
             "message": f"{'Attendance marked for' if newly_marked else 'Already marked today for'} {match['name']}",
         })
     else:
         return jsonify({"status": "unknown", "message": "Face not recognized. Student may not be registered yet."})
 
 
+@app.route("/api/kiosk_stats")
+def api_kiosk_stats():
+    """Public stats for the attendance kiosk screen."""
+    summary = get_today_summary()
+    today_records = get_attendance_by_date(date.today().isoformat())
+    students = get_all_students()
+    return jsonify({
+        "present": summary.get("present", 0),
+        "total": len(students),
+        "percentage": summary.get("percentage", 0),
+        "recent": [{
+            "name": r["name"],
+            "roll_no": r["roll_no"],
+            "time": r["time"] if "time" in r.keys() and r["time"] else "",
+            "class_name": f"{r['class_name']} - {r['section']}" if "class_name" in r.keys() else ""
+        } for r in today_records[:10]]
+    })
+
+
 @app.route("/api/stop_camera", methods=["POST"])
-@login_required
 def api_stop_camera():
     """Stop the camera feed."""
     camera.stop()
@@ -433,7 +479,6 @@ def api_stop_camera():
 
 
 @app.route("/api/capture_frame", methods=["POST"])
-@login_required
 def api_capture_frame():
     """Captures a single frame directly from camera service or hardware."""
     try:

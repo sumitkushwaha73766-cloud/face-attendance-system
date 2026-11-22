@@ -666,3 +666,287 @@ h1, h2, h3, h4, h5, h6, .text-dark {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--neon-cyan);
 }
+
+
+/* ─── 16. Kiosk Surface & 1-Click Biometric Terminal ──────── */
+.kiosk-header {
+    background: rgba(10, 15, 29, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border-color);
+    z-index: 1050;
+    transition: background 0.3s ease;
+}
+
+:root[data-theme="light"] .kiosk-header {
+    background: rgba(255, 255, 255, 0.9);
+    border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.kiosk-main-wrapper {
+    padding-top: 88px;
+    min-height: 100vh;
+    position: relative;
+    z-index: 1;
+}
+
+.kiosk-brand-badge {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: rgba(6, 182, 212, 0.15);
+    border: 1px solid rgba(6, 182, 212, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 15px rgba(6, 182, 212, 0.2);
+}
+
+.kiosk-hero-badge {
+    background: rgba(6, 182, 212, 0.12);
+    border: 1px solid rgba(6, 182, 212, 0.3);
+    color: var(--neon-cyan);
+    padding: 6px 18px;
+    border-radius: 9999px;
+    font-size: 0.76rem;
+    letter-spacing: 0.8px;
+    box-shadow: 0 0 16px rgba(6, 182, 212, 0.18);
+}
+
+.text-gradient-cyan {
+    background: linear-gradient(135deg, #38bdf8 0%, #06b6d4 50%, #818cf8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.kiosk-card {
+    background: var(--bg-card) !important;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--border-color) !important;
+    border-radius: 20px;
+    box-shadow: 0 20px 45px -15px rgba(0, 0, 0, 0.5);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.kiosk-card-header {
+    background: rgba(255, 255, 255, 0.02) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+}
+
+/* 1-Click Action Button */
+.btn-kiosk-action {
+    background: linear-gradient(135deg, #06b6d4 0%, #2563eb 50%, #7c3aed 100%);
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 0 30px rgba(6, 182, 212, 0.45), 0 10px 25px rgba(0, 0, 0, 0.35);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    cursor: pointer;
+}
+
+.btn-kiosk-action:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 45px rgba(6, 182, 212, 0.75), 0 14px 30px rgba(0, 0, 0, 0.45);
+}
+
+.btn-kiosk-action:active {
+    transform: scale(0.98);
+}
+
+.btn-glow-pulse {
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, transparent 60%);
+    opacity: 0.6;
+    animation: rotateGlow 6s linear infinite;
+    pointer-events: none;
+}
+
+@keyframes rotateGlow {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.scanning-active {
+    opacity: 0.8;
+    cursor: wait !important;
+    animation: buttonPulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes buttonPulse {
+    0% { box-shadow: 0 0 20px rgba(6, 182, 212, 0.4); }
+    100% { box-shadow: 0 0 50px rgba(6, 182, 212, 0.9); }
+}
+
+/* Admin Portal Navbar Button */
+.btn-admin-portal {
+    background: rgba(6, 182, 212, 0.12);
+    border: 1px solid rgba(6, 182, 212, 0.4);
+    color: var(--neon-cyan);
+    border-radius: 9999px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.btn-admin-portal:hover {
+    background: var(--neon-cyan);
+    color: #070b14;
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.5);
+    transform: translateY(-1px);
+}
+
+/* Camera Stream Image */
+.kiosk-feed-img {
+    width: 100%;
+    max-height: 420px;
+    object-fit: cover;
+    background: #000;
+}
+
+/* Status Indicators */
+.pulse-dot-green {
+    width: 8px;
+    height: 8px;
+    background-color: var(--neon-emerald);
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 10px var(--neon-emerald);
+    animation: pulseDot 1.5s infinite;
+}
+
+.status-pill-glow {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+/* Reticle State Modifiers */
+.reticle-scanning {
+    border-color: var(--neon-amber) !important;
+    animation: spinSlow 1s linear infinite;
+}
+
+.reticle-success {
+    border-color: var(--neon-emerald) !important;
+    box-shadow: 0 0 35px var(--neon-emerald) !important;
+}
+
+.reticle-danger {
+    border-color: var(--neon-rose) !important;
+    box-shadow: 0 0 35px var(--neon-rose) !important;
+}
+
+/* Verification Result Cards */
+.verification-match-card {
+    background: rgba(16, 185, 129, 0.08);
+    border: 2px solid rgba(16, 185, 129, 0.5);
+    box-shadow: 0 0 35px rgba(16, 185, 129, 0.25);
+    animation: matchCardIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.verification-error-card {
+    background: rgba(244, 63, 94, 0.08);
+    border: 2px solid rgba(244, 63, 94, 0.5);
+    box-shadow: 0 0 35px rgba(244, 63, 94, 0.2);
+    animation: matchCardIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes matchCardIn {
+    0% {
+        opacity: 0;
+        transform: translateY(-12px) scale(0.96);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.match-avatar-ring {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    background: rgba(16, 185, 129, 0.15);
+    border: 2px solid var(--neon-emerald);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 25px rgba(16, 185, 129, 0.4);
+}
+
+.ring-danger {
+    background: rgba(244, 63, 94, 0.15);
+    border-color: var(--neon-rose);
+    box-shadow: 0 0 25px rgba(244, 63, 94, 0.4);
+}
+
+/* Live Feed Items */
+.feed-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    transition: all 0.2s ease;
+}
+
+.feed-item:hover {
+    background: rgba(255, 255, 255, 0.07);
+    transform: translateX(4px);
+    border-color: var(--neon-cyan);
+}
+
+.feed-avatar-pill {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: rgba(16, 185, 129, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.animate-slide-in {
+    animation: slideInFeed 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideInFeed {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.brand-icon-box {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: rgba(6, 182, 212, 0.15);
+    border: 1px solid rgba(6, 182, 212, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-outline-cyan {
+    color: var(--neon-cyan);
+    border-color: var(--neon-cyan);
+}
+
+.btn-outline-cyan:hover {
+    background: var(--neon-cyan);
+    color: #070b14;
+    box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
+}
+
+.bg-black-subtle {
+    background: rgba(0, 0, 0, 0.35) !important;
+}
+
+.shadow-2xl {
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7) !important;
+}
