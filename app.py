@@ -52,13 +52,20 @@ app.permanent_session_lifetime = timedelta(seconds=Config.PERMANENT_SESSION_LIFE
 # [FIX C2] Enable CSRF protection globally
 csrf = CSRFProtect(app)
 
-# [FIX L1] Security headers
+# [FIX L1] Security headers & Content Security Policy
 @app.after_request
 def add_security_headers(response):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self' https://cdn.jsdelivr.net https://fonts.googleapis.com https://fonts.gstatic.com; "
+        "img-src 'self' data: https: blob:; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net;"
+    )
     return response
 
 # Initialize database on first run

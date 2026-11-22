@@ -38,8 +38,12 @@ class Config:
     # Camera
     CAMERA_INDEX = 0  # Default webcam
 
-    # [FIX M6] Session timeout (2 hours)
-    PERMANENT_SESSION_LIFETIME = 7200  # seconds
+    # [FIX M6] Session timeout & Cookie Hardening
+    PERMANENT_SESSION_LIFETIME = 7200  # 2 hours
+    SESSION_COOKIE_HTTPONLY = True     # Block JavaScript access to session cookie (XSS defense)
+    SESSION_COOKIE_SAMESITE = "Lax"    # Strict SameSite cookie policy
+    SESSION_COOKIE_SECURE = os.environ.get("FLASK_ENV") == "production" or os.environ.get("HTTPS_ENFORCE", "false").lower() == "true"
+    WTF_CSRF_TIME_LIMIT = 3600         # CSRF token expires after 1 hour
 
     # [FIX H2] Login rate limiting
     MAX_LOGIN_ATTEMPTS = 5
