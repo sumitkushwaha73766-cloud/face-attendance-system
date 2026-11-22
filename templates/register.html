@@ -46,7 +46,7 @@
                             </li>
                             <li class="nav-item">
                                 <button class="nav-link" id="upload-tab-btn" data-bs-toggle="pill" data-bs-target="#uploadTab" type="button">
-                                    <i class="bi bi-upload me-1"></i> Option B: Upload Photo (Instant & Always Works)
+                                    <i class="bi bi-upload me-1"></i> Option B: Upload Photo (Always Works)
                                 </button>
                             </li>
                         </ul>
@@ -63,15 +63,8 @@
 
                                     <!-- Video / Preview Area -->
                                     <div class="video-container position-relative d-inline-block text-center mb-3" style="min-height: 260px;">
-                                        <!-- Standby / Loading Box -->
-                                        <div id="cameraStandbyBox" class="p-4 bg-white rounded border d-flex flex-column align-items-center justify-content-center shadow-sm" style="width: 380px; height: 260px; max-width: 100%;">
-                                            <div class="spinner-border text-primary mb-2" role="status"></div>
-                                            <span class="text-dark fw-semibold small">Connecting to Camera...</span>
-                                            <span class="text-muted small mt-1">Please look at the camera lens</span>
-                                        </div>
-
-                                        <!-- Live Stream Feed (Direct from backend - Works 100% on all browsers!) -->
-                                        <img id="serverCameraFeed" src="{{ url_for('video_feed') }}" onload="onFeedLoaded()" onerror="onFeedError()" class="rounded border shadow-sm" style="width: 380px; height: 260px; object-fit: cover; display: none;">
+                                        <!-- Live Stream Feed (Direct from backend OpenCV stream - Visible by default!) -->
+                                        <img id="serverCameraFeed" src="{{ url_for('video_feed') }}" class="rounded border shadow-sm" style="width: 380px; height: 260px; object-fit: cover; background: #111;" onerror="onFeedError()">
 
                                         <!-- Snapshot Result Preview Canvas -->
                                         <canvas id="webcamCanvas" width="380" height="260" class="rounded border shadow-sm" style="display:none;"></canvas>
@@ -125,28 +118,11 @@
 <script>
 const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
-function onFeedLoaded() {
-    const feed = document.getElementById('serverCameraFeed');
-    const standby = document.getElementById('cameraStandbyBox');
-    if (feed && standby) {
-        standby.style.display = 'none';
-        feed.style.display = 'inline-block';
-    }
-}
-
 function onFeedError() {
-    const standby = document.getElementById('cameraStandbyBox');
     const errorBox = document.getElementById('cameraErrorBox');
     const errorMsg = document.getElementById('cameraErrorMsg');
-    if (standby) {
-        standby.innerHTML = `
-            <i class="bi bi-camera-video-off display-3 text-warning opacity-75 mb-2"></i>
-            <span class="text-dark fw-semibold small">Camera Not Available</span>
-            <span class="text-muted small mt-1">Please use "Option B: Upload Photo" above</span>
-        `;
-    }
     if (errorBox && errorMsg) {
-        errorMsg.textContent = "Camera feed could not start. Please use Option B (Upload Photo) to register.";
+        errorMsg.textContent = "Camera stream failed. Please click 'Option B: Upload Photo' above.";
         errorBox.style.display = 'block';
     }
 }
@@ -220,10 +196,8 @@ function retakePhoto() {
     document.getElementById('capturedPhotoData').value = '';
     document.getElementById('webcamCanvas').style.display = 'none';
     const feed = document.getElementById('serverCameraFeed');
-    const standby = document.getElementById('cameraStandbyBox');
 
-    standby.style.display = 'flex';
-    feed.style.display = 'none';
+    feed.style.display = 'inline-block';
     feed.src = "{{ url_for('video_feed') }}?t=" + new Date().getTime();
 
     document.getElementById('retakeBtn').style.display = 'none';
