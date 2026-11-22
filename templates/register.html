@@ -166,6 +166,7 @@ function captureLiveStream() {
         captureStreamBtn.innerHTML = '<i class="bi bi-camera-fill me-1"></i> 📸 Click Photo to Capture';
 
         if (data.status === 'success') {
+            document.getElementById('capturedPhotoData').value = data.image;
             feed.style.display = 'none';
             feed.src = '';
 
@@ -177,7 +178,6 @@ function captureLiveStream() {
                 captureStreamBtn.style.display = 'none';
                 retakeBtn.style.display = 'inline-block';
                 badge.style.display = 'inline-block';
-                document.getElementById('capturedPhotoData').value = data.image;
             };
             img.src = data.image;
         } else {
@@ -204,6 +204,28 @@ function retakePhoto() {
     document.getElementById('captureStreamBtn').style.display = 'inline-block';
     document.getElementById('captureSuccessBadge').style.display = 'none';
 }
+
+// ─── Form Submission Validation ─────────────────────────────
+document.getElementById('registerForm').addEventListener('submit', function(e) {
+    const photoInput = document.getElementById('photoInput');
+    const capturedData = document.getElementById('capturedPhotoData').value;
+    const isUploadActive = document.getElementById('uploadTab').classList.contains('active');
+
+    if (isUploadActive) {
+        if (!photoInput.files || photoInput.files.length === 0) {
+            e.preventDefault();
+            alert('Please choose a student photo file to upload.');
+            photoInput.focus();
+            return;
+        }
+    } else {
+        if (!capturedData) {
+            e.preventDefault();
+            alert('Please click the green "📸 Click Photo to Capture" button first to snap your photo before registering!\n\nOr click "Option B: Upload Photo" to upload a photo file directly.');
+            return;
+        }
+    }
+});
 
 window.addEventListener('beforeunload', () => {
     const feed = document.getElementById('serverCameraFeed');

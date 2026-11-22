@@ -89,6 +89,10 @@ def detect_and_encode_face(image_path):
     if img is None:
         return None, "Could not open image file. Please upload a valid JPG or PNG."
 
+    # Check for completely black/dark image (e.g. laptop camera privacy shutter closed)
+    if np.mean(img) < 15:
+        return None, "Camera image is completely pitch black. Please check if your laptop's physical webcam privacy slider (shutter) above the screen is closed, or use 'Option B: Upload Photo'."
+
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     faces = face_cascade.detectMultiScale(
         gray,
@@ -132,6 +136,10 @@ def encode_face_from_frame(frame):
                 return encodings[0], face_location, None
         except Exception:
             pass
+
+    # Check for pitch black frame (e.g. privacy shutter closed)
+    if np.mean(frame) < 15:
+        return None, None, "Camera feed is black/dark. Check laptop webcam shutter or use Photo Attendance."
 
     # 2. Native OpenCV detection
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)

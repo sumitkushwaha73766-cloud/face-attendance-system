@@ -291,8 +291,19 @@ def register():
                 flash("Invalid photo data. Please try again.", "danger")
                 return render_template("register.html", classes=classes)
         else:
-            flash("Please upload a photo or capture one from webcam.", "danger")
-            return render_template("register.html", classes=classes)
+            # Try auto-capturing from active camera if available
+            auto_saved = False
+            if camera.is_running():
+                success, f = camera.get_frame()
+                if success and f is not None and np.mean(f) >= 15:
+                    _, buf = cv2.imencode(".jpg", f)
+                    with open(filepath, "wb") as out_file:
+                        out_file.write(buf.tobytes())
+                    auto_saved = True
+
+            if not auto_saved:
+                flash("Please upload a student photo using Option B or click '📸 Click Photo to Capture' on webcam.", "warning")
+                return render_template("register.html", classes=classes)
 
         # Detect and encode face
         encoding, error = detect_and_encode_face(filepath)
