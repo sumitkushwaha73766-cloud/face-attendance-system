@@ -42,15 +42,41 @@
                         </div>
 
                         <div class="text-center">
-                            <div id="cameraPlaceholder" class="bg-light rounded d-flex flex-column align-items-center justify-content-center p-5" style="min-height: 380px;">
-                                <i class="bi bi-camera-video display-1 text-secondary opacity-50 mb-3"></i>
-                                <h6 class="fw-semibold text-dark mb-1">Live Camera Ready</h6>
-                                <p class="text-muted small mb-3">Click "Start Camera Attendance" above to begin automatic facial recognition</p>
-                                <button class="btn btn-outline-primary btn-sm" onclick="switchToPhotoTab()">
+                            <div id="cameraPlaceholder" class="p-5 d-flex flex-column align-items-center justify-content-center" style="min-height: 380px; border: 1px dashed var(--border-color); border-radius: 16px;">
+                                <i class="bi bi-camera-video display-1 text-info opacity-50 mb-3"></i>
+                                <h6 class="fw-semibold mb-1">AI Biometric Scanner Standby</h6>
+                                <p class="text-muted small mb-3">Click "Start Camera Attendance" above to begin real-time facial recognition</p>
+                                <button class="btn btn-outline-info btn-sm" onclick="switchToPhotoTab()">
                                     <i class="bi bi-upload me-1"></i> Or scan a photo directly
                                 </button>
                             </div>
-                            <img id="cameraFeed" src="" class="rounded shadow-sm img-fluid" style="max-height: 420px; display: none;">
+
+                            <!-- Sci-Fi Camera HUD Frame -->
+                            <div class="camera-hud-frame position-relative text-center shadow-lg" id="cameraHudFrame" style="display: none; width: 100%; max-width: 640px;">
+                                <div class="hud-bracket bracket-tl"></div>
+                                <div class="hud-bracket bracket-tr"></div>
+                                <div class="hud-bracket bracket-bl"></div>
+                                <div class="hud-bracket bracket-br"></div>
+
+                                <div class="hud-bar-top">
+                                    <span><span class="pulse-dot"></span> AI BIOMETRIC FEED</span>
+                                    <span>DIRECTSHOW • 30 FPS</span>
+                                </div>
+
+                                <div class="hud-laser"></div>
+
+                                <div class="hud-reticle">
+                                    <div class="hud-reticle-ring"></div>
+                                    <div class="hud-reticle-crosshair"></div>
+                                </div>
+
+                                <img id="cameraFeed" src="" class="rounded img-fluid" style="width: 100%; max-height: 420px; object-fit: cover;">
+
+                                <div class="hud-bar-bottom">
+                                    <span id="hudReadoutStatus">TARGET: SCANNING FACES...</span>
+                                    <span>OPENCV 456-D</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -169,24 +195,29 @@ function startAttendance() {
     stopBrowserAttendance();
 
     const feed = document.getElementById('cameraFeed');
+    const hud = document.getElementById('cameraHudFrame');
     const placeholder = document.getElementById('cameraPlaceholder');
     const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
 
     feed.src = "{{ url_for('video_feed') }}?t=" + new Date().getTime();
     feed.style.display = 'block';
+    if (hud) hud.style.display = 'inline-block';
     placeholder.style.display = 'none';
     startBtn.style.display = 'none';
     stopBtn.style.display = 'inline-block';
 
+    playBiometricSound('scan');
+
     document.getElementById('recognitionStatus').innerHTML =
-        '<div class="spinner-border text-primary mb-2" role="status"></div><p class="small text-muted">Scanning for faces...</p>';
+        '<div class="spinner-border text-info mb-2" role="status"></div><p class="small text-muted">AI scanning for faces...</p>';
 
     recognitionInterval = setInterval(recognizeLiveFeed, 2500);
 }
 
 function stopAttendance() {
     const feed = document.getElementById('cameraFeed');
+    const hud = document.getElementById('cameraHudFrame');
     const placeholder = document.getElementById('cameraPlaceholder');
     const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
@@ -203,6 +234,7 @@ function stopAttendance() {
 
     feed.style.display = 'none';
     feed.src = '';
+    if (hud) hud.style.display = 'none';
     placeholder.style.display = 'flex';
     startBtn.style.display = 'inline-block';
     stopBtn.style.display = 'none';
@@ -361,14 +393,25 @@ function escapeHtml(str) {
 
 function displayRecognitionResult(data) {
     const status = document.getElementById('recognitionStatus');
+    const hudStatus = document.getElementById('hudReadoutStatus');
 
     if (data.status === 'success') {
+        if (hudStatus) {
+            hudStatus.innerHTML = `IDENTIFIED: <span class="text-success fw-bold">${escapeHtml(data.name).toUpperCase()}</span> (${escapeHtml(data.roll_no)}) • ${escapeHtml(String(data.confidence))}%`;
+        }
+        playBiometricSound('success');
+        showBiometricToast(
+            `${data.name} (${data.roll_no})`,
+            data.newly_marked ? '✅ Attendance Verified & Recorded' : 'ℹ️ Attendance already logged for today',
+            'success'
+        );
+
         status.innerHTML = `
             <div class="text-success">
-                <i class="bi bi-check-circle-fill display-4"></i>
-                <h5 class="mt-2 fw-bold text-dark">${escapeHtml(data.name)}</h5>
-                <p class="mb-1 text-secondary small">Roll: <strong>${escapeHtml(data.roll_no)}</strong></p>
-                <div class="badge bg-success mb-2">Confidence: ${escapeHtml(String(data.confidence))}%</div><br>
+                <i class="bi bi-shield-check display-3 text-success"></i>
+                <h5 class="mt-2 fw-bold">${escapeHtml(data.name)}</h5>
+                <p class="mb-1 text-muted small">Roll: <code>${escapeHtml(data.roll_no)}</code></p>
+                <div class="badge bg-success-subtle text-success border border-success-subtle mb-2">Confidence: ${escapeHtml(String(data.confidence))}%</div><br>
                 <small class="${data.newly_marked ? 'text-success fw-bold' : 'text-warning'}">${escapeHtml(data.message)}</small>
             </div>
         `;
@@ -376,14 +419,21 @@ function displayRecognitionResult(data) {
             addToLog(data.name, data.roll_no);
         }
     } else if (data.status === 'unknown') {
+        if (hudStatus) {
+            hudStatus.innerHTML = `TARGET: UNKNOWN FACE • NOT REGISTERED`;
+        }
+        playBiometricSound('alert');
         status.innerHTML = `
             <div class="text-warning">
-                <i class="bi bi-question-circle display-4"></i>
-                <h6 class="mt-2 text-dark fw-bold">Unknown Person</h6>
+                <i class="bi bi-person-exclamation display-3 text-warning"></i>
+                <h6 class="mt-2 fw-bold">Unrecognized Person</h6>
                 <p class="text-muted small">${escapeHtml(data.message)}</p>
             </div>
         `;
     } else {
+        if (hudStatus) {
+            hudStatus.innerHTML = `STATUS: ${escapeHtml(data.message).toUpperCase()}`;
+        }
         status.innerHTML = `
             <div class="text-secondary">
                 <i class="bi bi-info-circle display-4 text-warning"></i>

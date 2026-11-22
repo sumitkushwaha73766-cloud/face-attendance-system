@@ -32,6 +32,7 @@ from models.student import (
 from models.attendance import (
     mark_attendance, get_attendance_by_date, get_today_summary,
     get_attendance_report, get_student_attendance_percentage,
+    get_weekly_trend,
 )
 from services.face_service import detect_and_encode_face, encode_face_from_frame, recognize_face
 from services.camera_service import camera
@@ -217,6 +218,7 @@ def dashboard():
     today_attendance = get_attendance_by_date(date.today().isoformat())
     classes = get_all_classes()
     students = get_all_students()
+    weekly_trend = get_weekly_trend()
     return render_template(
         "dashboard.html",
         summary=summary,
@@ -224,6 +226,7 @@ def dashboard():
         classes=classes,
         total_students=len(students),
         total_classes=len(classes),
+        weekly_trend=weekly_trend,
     )
 
 

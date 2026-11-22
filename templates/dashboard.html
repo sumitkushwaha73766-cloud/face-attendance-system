@@ -1,128 +1,209 @@
 {% extends "base.html" %}
-{% block title %}Dashboard{% endblock %}
-{% block page_title %}<i class="bi bi-speedometer2 me-2"></i> Dashboard{% endblock %}
+{% block title %}Dashboard — Biometric Command Center{% endblock %}
+{% block page_title %}<i class="bi bi-cpu text-info me-2"></i> Biometric AI Command Center{% endblock %}
 
 {% block content %}
-<!-- Stats Cards -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm bg-primary text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="card-title mb-1">Total Students</h6>
-                        <h2 class="mb-0">{{ total_students }}</h2>
-                    </div>
-                    <i class="bi bi-people display-5 opacity-50"></i>
+<!-- ─── 1. Animated Metric Stat Cards ─────────────────────── -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="card stat-card card-blue p-3 h-100">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-muted small fw-semibold text-uppercase">Total Students</span>
+                    <div class="stat-value mt-1" data-countup="{{ total_students }}">{{ total_students }}</div>
+                    <small class="text-info"><i class="bi bi-people-fill me-1"></i> Registered Roster</small>
+                </div>
+                <div class="stat-icon-wrapper text-primary">
+                    <i class="bi bi-person-badge fs-4"></i>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm bg-success text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="card-title mb-1">Present Today</h6>
-                        <h2 class="mb-0">{{ summary.present }}</h2>
-                    </div>
-                    <i class="bi bi-check-circle display-5 opacity-50"></i>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card stat-card card-emerald p-3 h-100">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-muted small fw-semibold text-uppercase">Present Today</span>
+                    <div class="stat-value mt-1 text-success" data-countup="{{ summary.present }}">{{ summary.present }}</div>
+                    <small class="text-success"><i class="bi bi-check2-circle me-1"></i> Biometrically Verified</small>
+                </div>
+                <div class="stat-icon-wrapper text-success">
+                    <i class="bi bi-shield-check fs-4"></i>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm bg-danger text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="card-title mb-1">Absent Today</h6>
-                        <h2 class="mb-0">{{ summary.absent }}</h2>
-                    </div>
-                    <i class="bi bi-x-circle display-5 opacity-50"></i>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card stat-card card-rose p-3 h-100">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-muted small fw-semibold text-uppercase">Absent Today</span>
+                    <div class="stat-value mt-1 text-danger" data-countup="{{ summary.absent }}">{{ summary.absent }}</div>
+                    <small class="text-danger"><i class="bi bi-exclamation-circle me-1"></i> Unmarked Students</small>
+                </div>
+                <div class="stat-icon-wrapper text-danger">
+                    <i class="bi bi-person-x fs-4"></i>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm bg-info text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="card-title mb-1">Attendance %</h6>
-                        <h2 class="mb-0">{{ summary.percentage }}%</h2>
-                    </div>
-                    <i class="bi bi-graph-up display-5 opacity-50"></i>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card stat-card card-purple p-3 h-100">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-muted small fw-semibold text-uppercase">Attendance Rate</span>
+                    <div class="stat-value mt-1 text-info"><span data-countup="{{ summary.percentage }}">{{ summary.percentage }}</span>%</div>
+                    <small class="text-info"><i class="bi bi-graph-up-arrow me-1"></i> Daily Performance</small>
+                </div>
+                <div class="stat-icon-wrapper text-info">
+                    <i class="bi bi-pie-chart fs-4"></i>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Quick Actions + Today's Attendance -->
-<div class="row">
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-white">
-                <h6 class="mb-0"><i class="bi bi-lightning me-2"></i>Quick Actions</h6>
+<!-- ─── 2. Interactive Charts Row ─────────────────────────── -->
+<div class="row g-4 mb-4">
+    <!-- 7-Day Attendance Trend Area Chart -->
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-activity text-info me-2"></i>Weekly Attendance Activity</h6>
+                    <small class="text-muted">Real-time attendance scans recorded over the last 7 days</small>
+                </div>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1">
+                    <i class="bi bi-broadcast me-1"></i> Live Stream
+                </span>
             </div>
-            <div class="card-body">
-                <a href="{{ url_for('attendance') }}" class="btn btn-primary w-100 mb-2">
-                    <i class="bi bi-camera-video me-2"></i> Take Attendance
-                </a>
-                <a href="{{ url_for('register') }}" class="btn btn-success w-100 mb-2">
-                    <i class="bi bi-person-plus me-2"></i> Register Student
-                </a>
-                <a href="{{ url_for('reports') }}" class="btn btn-info w-100 mb-2 text-white">
-                    <i class="bi bi-download me-2"></i> Download Report
-                </a>
-                <a href="{{ url_for('classes_page') }}" class="btn btn-outline-secondary w-100">
-                    <i class="bi bi-building me-2"></i> Manage Classes
-                </a>
-            </div>
-        </div>
-
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white">
-                <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>System Info</h6>
-            </div>
-            <div class="card-body">
-                <p class="mb-1"><strong>Total Classes:</strong> {{ total_classes }}</p>
-                <p class="mb-1"><strong>Total Students:</strong> {{ total_students }}</p>
-                <p class="mb-0"><strong>Database:</strong> SQLite</p>
+            <div class="card-body p-4">
+                <div style="position: relative; height: 260px; width: 100%;">
+                    <canvas id="weeklyTrendChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="col-md-8">
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <h6 class="mb-0"><i class="bi bi-calendar-check me-2"></i>Today's Attendance</h6>
-                <span class="badge bg-primary">{{ today_attendance|length }} records</span>
+    <!-- Present vs Absent Donut Chart -->
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-pie-chart text-primary me-2"></i>Today's Ratio</h6>
+                <small class="text-muted">Presence breakdown for current session</small>
+            </div>
+            <div class="card-body p-3 d-flex flex-column align-items-center justify-content-center">
+                <div style="position: relative; height: 210px; width: 210px;">
+                    <canvas id="ratioDonutChart"></canvas>
+                </div>
+                <div class="d-flex justify-content-around w-100 mt-3 pt-2 border-top">
+                    <div class="text-center">
+                        <span class="badge rounded-pill bg-success-subtle text-success px-2 mb-1">● Present</span>
+                        <h6 class="fw-bold mb-0">{{ summary.present }}</h6>
+                    </div>
+                    <div class="text-center">
+                        <span class="badge rounded-pill bg-danger-subtle text-danger px-2 mb-1">● Absent</span>
+                        <h6 class="fw-bold mb-0">{{ summary.absent }}</h6>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ─── 3. Quick Actions & Live Attendance Feed ───────────── -->
+<div class="row g-4">
+    <!-- Quick Actions & System Status -->
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-lightning-charge text-warning me-2"></i>Terminal Actions</h6>
+            </div>
+            <div class="card-body p-3">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('attendance') }}" class="btn btn-primary py-2">
+                        <i class="bi bi-camera-video me-2"></i> Launch Biometric Scanner
+                    </a>
+                    <a href="{{ url_for('register') }}" class="btn btn-success py-2">
+                        <i class="bi bi-person-plus me-2"></i> Register New Student
+                    </a>
+                    <a href="{{ url_for('reports') }}" class="btn btn-outline-info py-2">
+                        <i class="bi bi-file-earmark-arrow-down me-2"></i> Export Excel / PDF Reports
+                    </a>
+                    <a href="{{ url_for('classes_page') }}" class="btn btn-outline-secondary py-2">
+                        <i class="bi bi-building me-2"></i> Configure Classes & Sections
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-cpu text-info me-2"></i>System Architecture</h6>
+            </div>
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-between mb-2 pb-2 border-bottom">
+                    <span class="text-muted small">AI Match Engine:</span>
+                    <span class="fw-semibold small text-info">OpenCV 456-D Normalized</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2 pb-2 border-bottom">
+                    <span class="text-muted small">Total Classes:</span>
+                    <span class="fw-semibold small">{{ total_classes }} Active</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2 pb-2 border-bottom">
+                    <span class="text-muted small">Hardware Backend:</span>
+                    <span class="fw-semibold small text-success">DirectShow 640x480</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted small">Database Storage:</span>
+                    <span class="fw-semibold small">SQLite3 (Thread-Safe)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Today's Attendance Table -->
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-clock-history text-success me-2"></i>Today's Attendance Stream</h6>
+                    <small class="text-muted">Students biometrically verified today</small>
+                </div>
+                <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1">
+                    {{ today_attendance|length }} Verified
+                </span>
             </div>
             <div class="card-body p-0">
                 {% if today_attendance %}
                 <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
                             <tr>
                                 <th>#</th>
-                                <th>Name</th>
-                                <th>Roll No</th>
-                                <th>Class</th>
-                                <th>Time</th>
+                                <th>Student</th>
+                                <th>Roll Number</th>
+                                <th>Class & Section</th>
+                                <th>Timestamp</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for record in today_attendance %}
                             <tr>
-                                <td>{{ loop.index }}</td>
-                                <td>{{ record.name }}</td>
-                                <td>{{ record.roll_no }}</td>
-                                <td>{{ record.class_name }} - {{ record.section }}</td>
-                                <td>{{ record.time }}</td>
-                                <td><span class="badge bg-success">{{ record.status }}</span></td>
+                                <td class="text-muted">{{ loop.index }}</td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center me-2 fw-bold" style="width: 32px; height: 32px; font-size: 0.8rem;">
+                                            {{ record.name[:2]|upper }}
+                                        </div>
+                                        <strong>{{ record.name }}</strong>
+                                    </div>
+                                </td>
+                                <td><code>{{ record.roll_no }}</code></td>
+                                <td><span class="badge bg-secondary-subtle text-secondary">{{ record.class_name }} - {{ record.section }}</span></td>
+                                <td><i class="bi bi-clock me-1 text-muted"></i>{{ record.time }}</td>
+                                <td><span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-check-circle-fill me-1"></i>Present</span></td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -130,13 +211,121 @@
                 </div>
                 {% else %}
                 <div class="text-center py-5 text-muted">
-                    <i class="bi bi-clipboard-x display-4"></i>
-                    <p class="mt-2">No attendance recorded today yet.</p>
-                    <a href="{{ url_for('attendance') }}" class="btn btn-primary btn-sm">Start Attendance</a>
+                    <i class="bi bi-camera-video display-4 text-secondary opacity-50 mb-3"></i>
+                    <h6 class="fw-semibold">No attendance recorded today yet</h6>
+                    <p class="small text-muted mb-3">Launch the biometric scanner to start logging attendance automatically.</p>
+                    <a href="{{ url_for('attendance') }}" class="btn btn-primary btn-sm px-4">
+                        <i class="bi bi-play-fill me-1"></i> Start Attendance Scanner
+                    </a>
                 </div>
                 {% endif %}
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // ─── 1. Weekly Attendance Trend Area Chart ────────────────
+    const trendCtx = document.getElementById('weeklyTrendChart');
+    if (trendCtx) {
+        const weeklyData = {{ weekly_trend|tojson|safe }};
+        const labels = weeklyData.map(item => {
+            const parts = item.date.split('-');
+            return parts[1] + '/' + parts[2];
+        });
+        const counts = weeklyData.map(item => item.count);
+
+        const gradient = trendCtx.getContext('2d').createLinearGradient(0, 0, 0, 260);
+        gradient.addColorStop(0, 'rgba(6, 182, 212, 0.45)');
+        gradient.addColorStop(1, 'rgba(99, 102, 241, 0.02)');
+
+        new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Attendance Count',
+                    data: counts,
+                    borderColor: '#06b6d4',
+                    borderWidth: 3,
+                    backgroundColor: gradient,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#06b6d4',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                        titleColor: '#06b6d4',
+                        bodyColor: '#ffffff',
+                        borderColor: 'rgba(6, 182, 212, 0.4)',
+                        borderWidth: 1,
+                        padding: 10,
+                        displayColors: false
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#64748b', font: { family: 'Plus Jakarta Sans' } }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1, color: '#64748b' },
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                    }
+                }
+            }
+        });
+    }
+
+    // ─── 2. Present vs Absent Donut Chart ────────────────────
+    const donutCtx = document.getElementById('ratioDonutChart');
+    if (donutCtx) {
+        const presentCount = {{ summary.present }};
+        const absentCount = {{ summary.absent }};
+        const hasData = (presentCount + absentCount) > 0;
+
+        new Chart(donutCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Present', 'Absent'],
+                datasets: [{
+                    data: hasData ? [presentCount, absentCount] : [0, 1],
+                    backgroundColor: hasData ? ['#10b981', '#ef4444'] : ['rgba(100, 116, 139, 0.2)'],
+                    borderWidth: 0,
+                    hoverOffset: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '72%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        enabled: hasData,
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#cbd5e1',
+                        padding: 10
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
 {% endblock %}

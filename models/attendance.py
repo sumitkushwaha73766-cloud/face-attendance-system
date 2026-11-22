@@ -1,6 +1,6 @@
 """Attendance model — mark and query attendance records."""
 import sqlite3
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from models import get_db
 
 
@@ -144,3 +144,15 @@ def get_student_attendance_percentage(student_id, start_date=None, end_date=None
     if total_days == 0:
         return 0.0
     return round((present_days / total_days * 100), 1)
+
+
+def get_weekly_trend():
+    """Get attendance counts for the last 7 days."""
+    with get_db() as db:
+        today = date.today()
+        trend = []
+        for i in range(6, -1, -1):
+            d = (today - timedelta(days=i)).isoformat()
+            row = db.execute("SELECT COUNT(*) as cnt FROM attendance WHERE date = ?", (d,)).fetchone()
+            trend.append({"date": d, "count": row["cnt"] if row else 0})
+        return trend
