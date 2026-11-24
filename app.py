@@ -641,10 +641,18 @@ def classes_page():
         class_name = request.form.get("class_name", "").strip()
         section = request.form.get("section", "").strip().upper()
 
+        # [FIX S2] Restrict to a safe charset — class_name/section are
+        # rendered unescaped into innerHTML on the public kiosk screen
+        # (kiosk.html / main.js), so unlike free text they must not allow
+        # HTML/script metacharacters through.
+        safe_text_re = re.compile(r"^[A-Za-z0-9\s\-&().]+$")
+
         if not all([class_name, section]):
             flash("Class name and section are required.", "danger")
         elif len(class_name) > 50 or len(section) > 10:
             flash("Class name or section too long.", "danger")
+        elif not safe_text_re.match(class_name) or not safe_text_re.match(section):
+            flash("Class name and section can only contain letters, numbers, spaces, and - & ( ) .", "danger")
         else:
             with get_db() as db:
                 try:

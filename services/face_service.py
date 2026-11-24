@@ -178,12 +178,18 @@ def recognize_face(unknown_encoding, known_faces, threshold=None):
     """
     Compare an unknown face encoding against registered faces.
     Returns matched student dict with confidence or None.
+
+    `threshold`, if given, is applied ONLY when it matches the encoding
+    type actually in use (LBPH / dlib / legacy each operate on a different
+    distance scale, so a single fixed threshold is never safe to apply
+    across all three — see [FIX S1]).
     """
     if not known_faces or unknown_encoding is None:
         return None
 
     best_match = None
     min_dist = float("inf")
+    eff_threshold = None
     enc_len = len(unknown_encoding)
 
     for student in known_faces:
@@ -196,20 +202,30 @@ def recognize_face(unknown_encoding, known_faces, threshold=None):
             s_vec = np.ascontiguousarray(stored_enc, dtype=np.float32)
             u_vec = np.ascontiguousarray(unknown_encoding, dtype=np.float32)
             dist = float(cv2.compareHist(s_vec, u_vec, cv2.HISTCMP_CHISQR))
-            eff_threshold = threshold if threshold is not None else 85.0
+            default_threshold = 85.0
         elif enc_len == 128:
             # dlib Euclidean distance
             dist = float(np.linalg.norm(stored_enc - unknown_encoding))
-            eff_threshold = threshold if threshold is not None else 0.50
+            default_threshold = 0.50
         else:
             # Cosine distance
             sim = float(np.dot(stored_enc, unknown_encoding))
             dist = 1.0 - sim
-            eff_threshold = threshold if threshold is not None else 0.38
+            default_threshold = 0.38
+
+        # [FIX S1] A caller-supplied threshold only applies to the LBPH
+        # scale (0-100ish distances) it was designed for; dlib/cosine
+        # distances live on a 0-1 scale and must always use their own
+        # type-correct default, or every face would incorrectly match.
+        if threshold is not None and enc_len == 16384:
+            candidate_threshold = threshold
+        else:
+            candidate_threshold = default_threshold
 
         if dist < min_dist:
             min_dist = dist
             best_match = student
+            eff_threshold = candidate_threshold
 
     if best_match is not None and min_dist <= eff_threshold:
         if enc_len == 16384:
